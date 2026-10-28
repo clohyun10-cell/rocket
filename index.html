@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>물로켓 과학 시뮬레이터 (Water Rocket Physics & Thermodynamics)</title>
+    <!-- Tailwind CSS (경량 레이아웃용) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+    <!-- Top Navigation Header -->
+    <header class="app-header py-3 px-5 flex flex-wrap items-center justify-between gap-4 sticky top-0 z-40">
+        <div class="flex items-center gap-3">
+            <span class="text-2xl">🚀</span>
+            <div>
+                <h1 class="text-lg font-bold text-sky-400 tracking-tight flex items-center gap-2">
+                    물로켓 열역학 & 탄도학 시뮬레이터
+                    <span class="text-xs font-normal px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800">v2.0 Advanced</span>
+                </h1>
+                <p class="text-xs text-slate-400">
+                    보일의 법칙 · 단열 팽창(열역학 제1법칙) · 포화 증기압 · 작용-반작용 추력 · 포물선 운동 & 에너지 보존
+                </p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-3">
+            <button id="btnOpenTheory" class="btn btn-secondary text-xs py-1.5 px-3">
+                📖 열역학/물리 이론 가이드
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-[1680px] mx-auto p-4 grid grid-cols-1 xl:grid-cols-12 gap-4">
+
+        <!-- LEFT PANEL: Parameters & Controls (4 Cols on XL) -->
+        <aside class="xl:col-span-4 flex flex-col gap-4">
+
+            <!-- Presets Section -->
+            <div class="glass-panel p-3">
+                <div class="text-xs font-semibold text-slate-300 mb-2 flex items-center gap-1.5">
+                    <span>⚡</span> <span>탐구 목적별 빠른 프리셋:</span>
+                </div>
+                <div class="flex flex-wrap gap-1.5">
+                    <button class="preset-pill" data-preset="optimal-range">🎯 비행거리 극대화 (물 30%)</button>
+                    <button class="preset-pill" data-preset="max-altitude">🔝 최고 고도 수직발사 (85°)</button>
+                    <button class="preset-pill" data-preset="hot-water">♨️ 고온수 증기압 (70°C)</button>
+                    <button class="preset-pill" data-preset="cold-water">❄️ 냉수 비교군 (5°C)</button>
+                    <button class="preset-pill" data-preset="low-water">💧 물 부족 (150mL)</button>
+                    <button class="preset-pill" data-preset="high-water">⚖️ 물 과다 (1400mL)</button>
+                </div>
+            </div>
+
+            <!-- Parameters Card -->
+            <div class="glass-panel p-4 flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <h2 class="text-sm font-bold text-sky-400 flex items-center gap-2">
+                        <span>⚙️</span> 발사 파라미터 설정
+                    </h2>
+                    <span class="text-[11px] text-slate-400">실시간 연동</span>
+                </div>
+
+                <!-- 1. 수온 (Water Temperature) -->
+                <div class="slider-container">
+                    <div class="slider-header">
+                        <label class="slider-label" for="tempSlider">
+                            <span>🌡️</span> 수온 (Water Temp)
+                        </label>
+                        <div class="slider-input-group">
+                            <input type="number" id="tempInput" class="num-input" min="5" max="85" step="1" value="25">
+                            <span class="text-xs text-slate-400">°C</span>
+                        </div>
+                    </div>
+                    <input type="range" id="tempSlider" class="range-slider" min="5" max="85" step="1" value="25">
+                    <div id="tempVaporBadge" class="badge-info text-sky-300">
+                        포화 증기압: 3.17 kPa (0.032 bar)
+                    </div>
+                </div>
+
+                <!-- 2. 물의 양 (Water Volume) -->
+                <div class="slider-container">
+                    <div class="slider-header">
+                        <label class="slider-label" for="waterSlider">
+                            <span>💧</span> 물의 양 (Water Volume)
+                        </label>
+                        <div class="slider-input-group">
+                            <input type="number" id="waterInput" class="num-input" min="50" max="1800" step="25" value="600">
+                            <span class="text-xs text-slate-400">mL</span>
+                        </div>
+                    </div>
+                    <input type="range" id="waterSlider" class="range-slider" min="50" max="1800" step="25" value="600">
+                    <div id="waterRatioBadge" class="badge-info text-cyan-300">
+                        용량 대비 30% (권장 최적 범위: 30~35%)
+                    </div>
+                </div>
+
+                <!-- 3. 공기 압력 (Air Pressure) -->
+                <div class="slider-container">
+                    <div class="slider-header">
+                        <label class="slider-label" for="pressureSlider">
+                            <span>💨</span> 공기 주입 압력 (Pressure)
+                        </label>
+                        <div class="slider-input-group">
+                            <input type="number" id="pressureInput" class="num-input" min="1.0" max="8.0" step="0.1" value="5.0">
+                            <span class="text-xs text-slate-400">bar</span>
+                        </div>
+                    </div>
+                    <input type="range" id="pressureSlider" class="range-slider" min="1.0" max="8.0" step="0.1" value="5.0">
+                    <div id="pressurePsiBadge" class="badge-info text-amber-300">
+                        약 72.5 psi (500 kPa)
+                    </div>
+                </div>
+
+                <!-- 4. 로켓 건조 질량 (Dry Mass) -->
+                <div class="slider-container">
+                    <div class="slider-header">
+                        <label class="slider-label" for="massSlider">
+                            <span>⚖️</span> 로켓 본체 질량 (Dry Mass)
+                        </label>
+                        <div class="slider-input-group">
+                            <input type="number" id="massInput" class="num-input" min="50" max="500" step="10" value="150">
+                            <span class="text-xs text-slate-400">g</span>
+                        </div>
+                    </div>
+                    <input type="range" id="massSlider" class="range-slider" min="50" max="500" step="10" value="150">
+                    <div class="badge-info text-slate-400">
+                        페트병 본체 + 노즈콘 + 날개 질량 (물 제외)
+                    </div>
+                </div>
+
+                <!-- 5. 발사각 (Launch Angle) -->
+                <div class="slider-container">
+                    <div class="slider-header">
+                        <label class="slider-label" for="angleSlider">
+                            <span>📐</span> 발사 각도 (Launch Angle)
+                        </label>
+                        <div class="slider-input-group">
+                            <input type="number" id="angleInput" class="num-input" min="15" max="85" step="1" value="45">
+                            <span class="text-xs text-slate-400">°</span>
+                        </div>
+                    </div>
+                    <input type="range" id="angleSlider" class="range-slider" min="15" max="85" step="1" value="45">
+                    <div class="badge-info text-emerald-300">
+                        지면 기준 수평 발사각도 (최대 사거리 이론값: 약 40~45°)
+                    </div>
+                </div>
+
+                <!-- Collapsible Advanced Options -->
+                <details class="text-xs bg-slate-900/60 p-2.5 rounded-lg border border-slate-800">
+                    <summary class="font-semibold text-slate-300 cursor-pointer select-none">
+                        🛠️ 고급 열역학 & 로켓 기구 설정
+                    </summary>
+                    <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-slate-800">
+                        <div>
+                            <label class="text-[11px] text-slate-400 block mb-1">페트병 용량</label>
+                            <select id="bottleVolumeSelect" class="w-full bg-slate-800 border border-slate-700 rounded p-1 text-slate-200">
+                                <option value="1.5">1.5 L 페트병</option>
+                                <option value="2.0" selected>2.0 L 대용량 페트병</option>
+                                <option value="2.5">2.5 L 특대형 병</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[11px] text-slate-400 block mb-1">노즐 직경</label>
+                            <select id="nozzleSelect" class="w-full bg-slate-800 border border-slate-700 rounded p-1 text-slate-200">
+                                <option value="0.009">9 mm (수축 노즐: 장시간 분출)</option>
+                                <option value="0.015">15 mm (중간형)</option>
+                                <option value="0.021" selected>21 mm (표준 병 입구)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[11px] text-slate-400 block mb-1">열역학 팽창 모델</label>
+                            <select id="expansionModelSelect" class="w-full bg-slate-800 border border-slate-700 rounded p-1 text-slate-200">
+                                <option value="adiabatic" selected>단열 팽창 (γ=1.4, 열역학 제1법칙)</option>
+                                <option value="isothermal">등온 팽창 (γ=1.0, 보일의 법칙)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[11px] text-slate-400 block mb-1">풍속 (맞바람 - / 뒷바람 +)</label>
+                            <input type="number" id="windInput" class="w-full bg-slate-800 border border-slate-700 rounded p-1 text-slate-200" value="0" step="0.5">
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Action Controls -->
+                <div class="flex flex-col gap-2 mt-1">
+                    <button id="btnLaunch" class="btn btn-launch w-full font-bold tracking-wider">
+                        🚀 발사하기 (LAUNCH)
+                    </button>
+
+                    <div class="grid grid-cols-2 gap-2">
+                        <button id="btnPause" class="btn btn-secondary">
+                            ⏸ 일시정지
+                        </button>
+                        <button id="btnReset" class="btn btn-secondary">
+                            🔄 초기화
+                        </button>
+                    </div>
+
+                    <!-- Speed & Timeline -->
+                    <div class="bg-slate-900/80 p-2 rounded-lg border border-slate-800 flex flex-col gap-1.5">
+                        <div class="flex items-center justify-between text-[11px] text-slate-400">
+                            <span>재생 속도:</span>
+                            <div class="flex gap-1">
+                                <button class="btn-speed" data-speed="0.5">0.5x</button>
+                                <button class="btn-speed active" data-speed="1.0">1.0x</button>
+                                <button class="btn-speed" data-speed="2.0">2.0x</button>
+                                <button class="btn-speed" data-speed="5.0">5.0x</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] text-slate-400 font-mono">0s</span>
+                            <input type="range" id="timelineSlider" class="timeline-scrubber" min="0" max="100" value="0" step="0.1">
+                            <span class="text-[10px] text-slate-400 font-mono">End</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Real-time HUD Telemetry Cards (Mobile/Tablet fallback or Left side summary) -->
+            <div class="glass-panel p-3">
+                <div class="text-xs font-semibold text-slate-300 mb-2 flex items-center justify-between">
+                    <span>📡 실시간 비행 텔레메트리 (Telemetry)</span>
+                    <span id="hudTime" class="text-amber-400 font-mono font-bold">0.00s</span>
+                </div>
+                <div class="grid grid-cols-4 gap-2 text-center">
+                    <div class="hud-card">
+                        <div class="hud-label">고도 (h)</div>
+                        <div id="hudAlt" class="hud-val text-emerald-400">0.0m</div>
+                    </div>
+                    <div class="hud-card">
+                        <div class="hud-label">거리 (x)</div>
+                        <div id="hudDist" class="hud-val text-sky-400">0.0m</div>
+                    </div>
+                    <div class="hud-card">
+                        <div class="hud-label">속도 (v)</div>
+                        <div id="hudVel" class="hud-val text-rose-400">0m/s</div>
+                    </div>
+                    <div class="hud-card">
+                        <div class="hud-label">물 잔량</div>
+                        <div id="hudWater" class="hud-val text-cyan-400">600mL</div>
+                    </div>
+                    <div class="hud-card">
+                        <div class="hud-label">운동에너지 Ek</div>
+                        <div id="hudEk" class="hud-val text-sky-300">0 J</div>
+                    </div>
+                    <div class="hud-card">
+                        <div class="hud-label">위치에너지 Ep</div>
+                        <div id="hudEp" class="hud-val text-emerald-300">0 J</div>
+                    </div>
+                    <div class="hud-card">
+                        <div class="hud-label">내부 압력 P</div>
+                        <div id="hudPressure" class="hud-val text-amber-300">5.0bar</div>
+                    </div>
+                    <div class="hud-card">
+                        <div class="hud-label">분출 상태</div>
+                        <div id="hudPhase" class="hud-val text-xs text-slate-300 pt-1">대기</div>
+                    </div>
+                </div>
+            </div>
+
+        </aside>
+
+        <!-- RIGHT PANEL: Canvas, Analytics Charts & Results (8 Cols on XL) -->
+        <section class="xl:col-span-8 flex flex-col gap-4">
+
+            <!-- 1. Canvas Viewport Container -->
+            <div class="glass-panel glass-panel-glow relative overflow-hidden flex flex-col" style="height: 440px;">
+                <!-- Viewport Header Toolbar -->
+                <div class="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-slate-900/80 p-1 rounded-lg border border-slate-700/60 backdrop-blur">
+                    <button id="btnCamAuto" class="btn btn-secondary text-xs py-1 px-2" title="로켓 자동 추적">
+                        🎥 추적
+                    </button>
+                    <button id="btnCamFit" class="btn btn-secondary text-xs py-1 px-2" title="전체 궤적 조망">
+                        📐 전체
+                    </button>
+                    <button id="btnCamReset" class="btn btn-secondary text-xs py-1 px-2" title="카메라 리셋">
+                        🔄 리셋
+                    </button>
+                </div>
+
+                <!-- Canvas Element -->
+                <canvas id="simCanvas" class="w-full h-full cursor-grab active:cursor-grabbing block"></canvas>
+            </div>
+
+            <!-- 2. Dual Real-time Physics Graphs -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Energy Chart (Ek, Ep, Em) -->
+                <div class="glass-panel p-3 flex flex-col" style="height: 250px;">
+                    <canvas id="energyChart" class="w-full h-full block"></canvas>
+                </div>
+
+                <!-- Kinetics / Dynamic Chart (Tabs: Speed/Alt or Thrust/Pressure) -->
+                <div class="glass-panel p-3 flex flex-col relative" style="height: 250px;">
+                    <div class="absolute top-2 right-3 z-10 flex gap-1">
+                        <button id="tabSpeedAlt" class="tab-btn active">속도/고도</button>
+                        <button id="tabThrustPressure" class="tab-btn">추력/내부압력</button>
+                    </div>
+                    <canvas id="kineticsChart" class="w-full h-full block"></canvas>
+                </div>
+            </div>
+
+            <!-- 3. Final Results Summary Cards -->
+            <div class="glass-panel p-4">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-3">
+                    <h3 class="text-sm font-bold text-slate-200 flex items-center gap-2">
+                        <span>📊</span> 시뮬레이션 최종 비행 결과
+                    </h3>
+                    <span class="text-xs text-slate-400">Run Summary</span>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+                    <div class="metric-box">
+                        <div class="text-[11px] text-slate-400">최고 높이 (Apex)</div>
+                        <div id="resMaxAlt" class="text-base font-extrabold text-emerald-400 font-mono mt-0.5">0.0 m</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="text-[11px] text-slate-400">비행 거리 (Range)</div>
+                        <div id="resFlightDist" class="text-base font-extrabold text-sky-400 font-mono mt-0.5">0.0 m</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="text-[11px] text-slate-400">비행 시간 (Time)</div>
+                        <div id="resFlightTime" class="text-base font-extrabold text-amber-400 font-mono mt-0.5">0.0 s</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="text-[11px] text-slate-400">최고 속도 (Vmax)</div>
+                        <div id="resMaxVel" class="text-base font-extrabold text-rose-400 font-mono mt-0.5">0.0 m/s</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="text-[11px] text-slate-400">최대 추력 (Fmax)</div>
+                        <div id="resMaxThrust" class="text-base font-bold text-purple-400 font-mono mt-0.5">0.0 N</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="text-[11px] text-slate-400">물 분출 시간</div>
+                        <div id="resWaterTime" class="text-base font-bold text-cyan-400 font-mono mt-0.5">0.00 s</div>
+                    </div>
+                    <div class="metric-box">
+                        <div class="text-[11px] text-slate-400">수증기압 기여</div>
+                        <div id="resVaporContrib" class="text-base font-bold text-indigo-400 font-mono mt-0.5">+0.0 kPa</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. Comparison History & Sensitivity Analysis Tabs -->
+            <div class="glass-panel p-4 flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-slate-800 pb-2">
+                    <h3 class="text-sm font-bold text-sky-300 flex items-center gap-2">
+                        <span>🧪</span> 조건 변경 비교 분석 및 탐구 도구
+                    </h3>
+                    <div class="flex items-center gap-3 text-xs">
+                        <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
+                            <input type="checkbox" id="chkOverlayHistory" checked class="rounded bg-slate-800 border-slate-700 text-sky-500">
+                            이전 궤적 겹쳐보기 (Ghost Overlay)
+                        </label>
+                        <button id="btnClearHistory" class="text-xs text-rose-400 hover:text-rose-300 underline">
+                            기록 초기화
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Run Comparison Table -->
+                <div class="overflow-x-auto max-h-48">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="text-[11px] text-slate-400 border-b border-slate-700 bg-slate-900/60 font-medium">
+                                <th class="py-1.5 px-2">실행</th>
+                                <th class="py-1.5 px-2">수온</th>
+                                <th class="py-1.5 px-2">물의 양</th>
+                                <th class="py-1.5 px-2">공기압</th>
+                                <th class="py-1.5 px-2">로켓 질량</th>
+                                <th class="py-1.5 px-2">발사각</th>
+                                <th class="py-1.5 px-2">최고 높이</th>
+                                <th class="py-1.5 px-2">비행 거리</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody" class="font-mono">
+                            <!-- JS Generated Rows -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Variable Sensitivity Explorer -->
+                <div class="mt-2 pt-3 border-t border-slate-800 flex flex-col gap-2">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-semibold text-slate-300">🔍 변수별 영향 탐구기:</span>
+                            <select id="sensitivityVarSelect" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-sky-300">
+                                <option value="waterVolumeL" selected>💧 물의 양 (Water Volume)</option>
+                                <option value="airPressureBar">💨 공기 압력 (Air Pressure)</option>
+                                <option value="waterTempC">🌡️ 수온 (Water Temperature)</option>
+                                <option value="launchAngleDeg">📐 발사 각도 (Launch Angle)</option>
+                                <option value="dryMassKg">⚖️ 로켓 질량 (Rocket Dry Mass)</option>
+                            </select>
+                            <button id="btnRunSensitivity" class="btn btn-secondary text-xs py-1 px-2.5">
+                                분석 갱신
+                            </button>
+                        </div>
+                        <span class="text-[11px] text-slate-400">선택한 변수 변화에 따른 비행거리 및 최고높이 곡선</span>
+                    </div>
+
+                    <div id="sensitivitySummary"></div>
+
+                    <div class="h-36 w-full bg-slate-900/40 rounded-lg p-1 border border-slate-800">
+                        <canvas id="sensitivityChartCanvas" class="w-full h-full block"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Modal: Thermodynamics & Physics Science Guide -->
+    <div id="theoryModal" class="modal-overlay hidden">
+        <div class="modal-content text-slate-200">
+            <div class="flex items-center justify-between border-b border-slate-700 pb-3 mb-4">
+                <h2 class="text-lg font-bold text-sky-400 flex items-center gap-2">
+                    <span>🔬</span> 물로켓의 화학 및 물리 이론 가이드
+                </h2>
+                <button id="btnCloseTheory" class="text-slate-400 hover:text-white text-xl font-bold px-2">✕</button>
+            </div>
+
+            <div class="space-y-4 text-xs sm:text-sm leading-relaxed text-slate-300">
+                <section class="bg-slate-900/80 p-3 rounded-lg border border-slate-800">
+                    <h3 class="font-bold text-sky-300 mb-1 text-sm">1. 보일의 법칙과 열역학 제1법칙 (단열 팽창)</h3>
+                    <p class="mb-2">
+                        공기를 펌프로 압축하면 부피가 줄어들며 압력이 높아집니다(<strong>보일의 법칙: \(P \cdot V = \text{const}\)</strong>). 
+                        발사 시 고압 공기가 0.1초도 안 되는 극히 짧은 순간에 팽창하므로 외부와의 열교환 시간(\(dQ \approx 0\))이 없습니다.
+                    </p>
+                    <p class="text-slate-400">
+                        열역학 제1법칙(\(dQ = dU + dW\))에 의해 \(dU = -dW\), 즉 <strong>공기가 외부에 일을 하면서 내부 에너지가 감소하여 공기의 온도가 급격히 하강</strong>합니다. 
+                        단열 과정 공식은 \(P \cdot V^\gamma = \text{상수}\) (공기의 비열비 \(\gamma \approx 1.4\))를 따릅니다.
+                    </p>
+                </section>
+
+                <section class="bg-slate-900/80 p-3 rounded-lg border border-slate-800">
+                    <h3 class="font-bold text-amber-300 mb-1 text-sm">2. 수온에 따른 물의 포화 증기압 (포화 증기압 기여)</h3>
+                    <p class="mb-2">
+                        물 분자는 수온이 높을수록 활발한 열운동을 통해 증발하려는 경향(증기압)이 강해집니다. 
+                        밀폐된 페트병 속에서 물의 온도가 높아지면 기체 상에 수증기 분압(\(P_{vap}\))이 형성되어 총 초기 압력에 가산됩니다:
+                    </p>
+                    <p class="font-mono text-sky-300 bg-slate-950 p-2 rounded border border-slate-800">
+                        P_total,0 = P_atm + P_air,gauge + P_vap(T_water)
+                    </p>
+                    <p class="mt-1 text-slate-400">
+                        수온이 25°C일 때 약 3.17 kPa에 불과하지만, 70°C에서는 약 31.2 kPa (~0.31 bar)에 달하여 유의미한 추가 압력을 제공합니다.
+                    </p>
+                </section>
+
+                <section class="bg-slate-900/80 p-3 rounded-lg border border-slate-800">
+                    <h3 class="font-bold text-emerald-300 mb-1 text-sm">3. 작용-반작용과 노즐 유출 (물로켓 추력 방정식)</h3>
+                    <p class="mb-2">
+                        베르누이 방정식과 오리피스 유출 이론에 따르면, 노즐을 통해 분출되는 물의 유출 속도는 
+                        \(v_e = \sqrt{2 (P - P_{atm}) / \rho_w}\)입니다. 
+                        뉴턴의 제3법칙(작용-반작용)에 의해 후방으로 방출되는 질량 유량(\(\dot{m}\))에 비례하는 강력한 반작용 추력이 로켓 본체를 가속합니다:
+                    </p>
+                    <p class="font-mono text-emerald-300 bg-slate-950 p-2 rounded border border-slate-800">
+                        F_thrust = \dot{m} \cdot v_e \approx 2 \cdot C_d \cdot A_{nozzle} \cdot (P - P_{atm})
+                    </p>
+                </section>
+
+                <section class="bg-slate-900/80 p-3 rounded-lg border border-slate-800">
+                    <h3 class="font-bold text-purple-300 mb-1 text-sm">4. 왜 물의 양이 약 30~35%일 때 비행거리가 최대인가?</h3>
+                    <p class="mb-1">
+                        <strong>(1) 물이 너무 적으면:</strong> 분출할 반작용 질량(\(m\))이 부족하여, 공기만 빠르게 빠져나가고 충분한 운동량(\(p = m v\))을 전달받지 못합니다.
+                    </p>
+                    <p class="mb-1">
+                        <strong>(2) 물이 너무 많으면:</strong> 압축 공기가 들어갈 공간(공기실 부피 \(V_{air}\))이 너무 작아 저장된 열역학적 팽창 에너지가 부족하고 로켓이 너무 무거워 가속되지 못합니다.
+                    </p>
+                    <p class="text-sky-300 font-semibold">
+                        👉 따라서 "가용 압축 공기 에너지"와 "분출 질량(물)"의 절충점인 전체 용량의 약 30~35% (2L 병 기준 약 600mL)에서 최대 운동에너지와 비행거리가 달성됩니다!
+                    </p>
+                </section>
+            </div>
+
+            <div class="mt-5 text-right">
+                <button onclick="document.getElementById('theoryModal').classList.add('hidden')" class="btn btn-primary text-xs py-1.5 px-4">
+                    확인 및 닫기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Scripts -->
+    <script src="js/physics.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/renderer.js"></script>
+    <script src="js/simulator.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
