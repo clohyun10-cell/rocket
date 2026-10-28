@@ -36,8 +36,8 @@
 ## 🏃 실행 방법
 
 ### 방법 1. 온라인 웹 데모 (GitHub Pages)
-별도 다운로드 없이 웹 브라우저에서 바로 실행할 수 있습니다.
-- 저장소 Settings > Pages에서 배포 활성화 시: `https://<github-username>.github.io/rocket/`
+별도 설치 없이 웹 브라우저에서 바로 실행할 수 있습니다.
+- 🌐 **웹 바로가기**: [https://clohyun10-cell.github.io/rocket/](https://clohyun10-cell.github.io/rocket/)
 
 ### 방법 2. 간편 실행 (Windows)
 저장소를 클론하거나 다운로드한 후, 폴더 내의 **`launch.bat`** 파일을 더블 클릭하면 기본 웹 브라우저에서 바로 열립니다.
