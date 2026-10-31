@@ -52,6 +52,10 @@ class RocketRenderer {
         this.initEvents();
         this.resize();
         window.addEventListener('resize', () => this.resize());
+        if (typeof ResizeObserver !== 'undefined' && this.canvas.parentElement) {
+            this.resizeObserver = new ResizeObserver(() => this.resize());
+            this.resizeObserver.observe(this.canvas.parentElement);
+        }
 
         // 천체 반짝임 상시 루프
         this.startAmbientCelestialLoop();
@@ -82,6 +86,9 @@ class RocketRenderer {
         this.ctx.scale(dpr, dpr);
         this.width = rect.width;
         this.height = rect.height;
+        if (this.camera.mode === 'fit' && this.lastRenderState.sim) {
+            this.fitAllTrajectories(this.lastRenderState.sim);
+        }
     }
 
     initEvents() {

@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="h-screen max-h-screen overflow-hidden flex flex-col relative">
+<body class="flex flex-col relative">
 
     <!-- 은은하게 반짝이는 우주 배경 효과 -->
     <div class="celestial-bg-layer">
@@ -21,10 +21,10 @@
     </div>
 
     <!-- 상단 헤더 -->
-    <header class="app-header px-5 flex items-center shrink-0">
+    <header class="app-header px-4 sm:px-5 flex items-center shrink-0">
         <div class="flex items-center gap-3">
             <span class="text-xl">🚀</span>
-            <div class="flex flex-wrap items-baseline gap-3">
+            <div class="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
                 <h1 class="text-base sm:text-lg font-extrabold text-sky-300 tracking-tight">
                     IAGTM (화성 갈끄니까)
                 </h1>
@@ -35,17 +35,17 @@
         </div>
     </header>
 
-    <!-- 메인 대시보드 -->
-    <main class="flex-1 min-h-0 w-full max-w-[1860px] mx-auto px-4 py-2 grid grid-cols-12 gap-3 overflow-hidden">
+    <!-- 반응형 메인 대시보드 -->
+    <main class="dashboard-main flex-1 min-h-0 w-full max-w-[1920px] mx-auto px-3 sm:px-4 py-2 grid grid-cols-12 gap-2.5 sm:gap-3">
 
-        <!-- 좌측 컬럼: 발사 변수 설정 + 실시간 비행 계기판 (4칸) -->
-        <aside class="col-span-4 h-full min-h-0 flex flex-col gap-2.5 overflow-hidden">
+        <!-- 좌측 컬럼: 발사 변수 설정 + 실시간 비행 계기판 (와이드 노트북 4칸 / 작은 화면 12칸 자동 전환) -->
+        <aside class="left-col col-span-12 xl:col-span-4 flex flex-col gap-2.5">
 
             <!-- 1. 발사 변수 설정 패널 -->
-            <div class="cosmic-mid-panel p-3 flex-1 min-h-0 flex flex-col justify-between overflow-hidden">
+            <div class="cosmic-mid-panel p-2.5 sm:p-3 flex-1 min-h-0 flex flex-col justify-between gap-1.5">
                 <!-- 상단 헤더 -->
-                <div class="flex items-center justify-between border-b border-slate-600/40 pb-1.5 shrink-0">
-                    <h2 class="text-sm font-extrabold text-slate-100 flex items-center gap-1.5">
+                <div class="flex flex-wrap items-center justify-between gap-1 border-b border-slate-600/40 pb-1.5 shrink-0">
+                    <h2 class="text-xs sm:text-sm font-extrabold text-slate-100 flex items-center gap-1.5">
                         <span>⚙️</span> 발사 변수 설정
                     </h2>
                     <div class="flex items-center gap-1.5">
@@ -58,12 +58,12 @@
                 </div>
 
                 <!-- 단계 안내 -->
-                <div class="bg-slate-900/65 border border-slate-700/60 rounded-lg px-3 py-1 text-xs font-bold text-slate-200 shrink-0">
+                <div class="bg-slate-900/65 border border-slate-700/60 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-200 shrink-0">
                     <span id="changeStepGuide">1차 변수 1개 조정 ➔ [발사하기] 클릭</span>
                 </div>
 
-                <!-- 5대 변수 슬라이더 (삼각형 기호 제거, 권장 최적 비율 표기, 단일 색상) -->
-                <div class="flex-1 min-h-0 flex flex-col justify-evenly gap-1 my-0.5">
+                <!-- 5대 변수 슬라이더 (반응형 그리드: 작은 화면에서는 2열, 와이드 좌측 패널에서는 1열 균등 배분) -->
+                <div class="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-1 gap-1.5 content-evenly">
 
                     <!-- (1) 수온 -->
                     <div id="varBox_waterTempC" class="slider-container">
@@ -114,7 +114,7 @@
                     </div>
 
                     <!-- (5) 발사각 -->
-                    <div id="varBox_launchAngleDeg" class="slider-container">
+                    <div id="varBox_launchAngleDeg" class="slider-container md:col-span-2 xl:col-span-1">
                         <div class="slider-header">
                             <span class="unified-var-title">발사각 <span class="unified-opt-badge">· 권장 최적 40~45° (최대 비행 거리)</span></span>
                             <div class="flex items-center gap-1 shrink-0">
@@ -158,7 +158,7 @@
                     <span class="text-xs font-extrabold text-slate-100">📡 실시간 비행 계기판</span>
                     <span id="hudTime" class="font-mono text-xs font-extrabold text-slate-100">0.00 s</span>
                 </div>
-                <div class="grid grid-cols-4 gap-2 text-center">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
                     <div class="hud-card">
                         <div class="hud-label">현재 높이</div>
                         <div id="hudAlt" class="hud-val">0.0 m</div>
@@ -180,12 +180,12 @@
 
         </aside>
 
-        <!-- 우측 컬럼: 캔버스 + 2회 변경 분석 + 그래프 2종 + 측정 결과/비교표 + 결론 (8칸) -->
-        <section class="col-span-8 h-full min-h-0 flex flex-col gap-2 overflow-hidden">
+        <!-- 우측 컬럼: 캔버스 + 2회 변경 분석 + 그래프 2종 + 측정 결과/비교표 + 결론 (와이드 노트북 8칸 / 작은 화면 12칸 자동 전환) -->
+        <section class="right-col col-span-12 xl:col-span-8 flex flex-col gap-2">
 
             <!-- 1. 우주 발사 궤적 시뮬레이션 캔버스 -->
-            <div class="cosmic-dark-panel flex-[1.2] min-h-0 flex flex-col overflow-hidden">
-                <div class="px-3.5 py-1.5 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between shrink-0">
+            <div class="canvas-viewport-box cosmic-dark-panel flex-[1.2] min-h-[160px] flex flex-col overflow-hidden">
+                <div class="px-3.5 py-1.5 bg-slate-950/80 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 shrink-0">
                     <span class="text-xs font-extrabold text-slate-100">🌌 발사 궤적 애니메이션</span>
                     <div class="flex items-center gap-1.5">
                         <button id="btnCamAuto" class="btn btn-sub text-xs py-0.5 px-2.5">🎥 추적</button>
@@ -198,8 +198,8 @@
                 </div>
             </div>
 
-            <!-- 2. 2회 변수 변경 결과 분석 (잘리지 않도록 줄바꿈 허용 & 삼각형 기호 없음) -->
-            <div class="cosmic-mid-panel px-3.5 py-1.5 shrink-0 flex items-center justify-between gap-3 border-l-4 border-l-sky-400">
+            <!-- 2. 2회 변수 변경 결과 분석 -->
+            <div class="cosmic-mid-panel px-3.5 py-1.5 shrink-0 flex flex-wrap items-center justify-between gap-2 border-l-4 border-l-sky-400">
                 <div class="flex flex-wrap items-center gap-2 min-w-0 flex-1">
                     <span class="text-xs font-extrabold text-sky-300 shrink-0">🔎 변수 변경 분석 :</span>
                     <div id="twoStepAnalysisText" class="text-xs font-bold text-slate-100 leading-snug">
@@ -211,20 +211,20 @@
                 </span>
             </div>
 
-            <!-- 3. 실시간 그래프 2종 + 그래프 아래 설명 (절대 잘리지 않게 구성, 삼각형 기호 없음) -->
-            <div class="flex-[1.0] min-h-0 grid grid-cols-2 gap-2.5 overflow-hidden">
+            <!-- 3. 실시간 그래프 2종 (화면 폭에 따라 2열 또는 1열 자동 전환) -->
+            <div class="flex-[1.0] min-h-0 grid grid-cols-1 md:grid-cols-2 gap-2.5">
 
                 <!-- 좌측: 에너지 그래프 -->
-                <div class="cosmic-mid-panel p-2.5 flex flex-col justify-between min-h-0 overflow-hidden">
-                    <div class="flex items-center justify-between pb-1 shrink-0">
+                <div class="chart-card-box cosmic-mid-panel p-2.5 flex flex-col justify-between min-h-[145px]">
+                    <div class="flex flex-wrap items-center justify-between gap-1 pb-1 shrink-0">
                         <span class="text-xs font-extrabold text-slate-100">⚡ 에너지 변화</span>
-                        <div class="flex items-center gap-2.5 text-xs font-bold">
+                        <div class="flex items-center gap-2 text-xs font-bold">
                             <span class="text-sky-300">● 운동(Ek)</span>
                             <span class="text-emerald-300">● 위치(Ep)</span>
                             <span class="text-amber-300">● 역학적(Em)</span>
                         </div>
                     </div>
-                    <div class="flex-1 min-h-0 w-full">
+                    <div class="flex-1 min-h-[85px] w-full">
                         <canvas id="energyChart" class="w-full h-full block"></canvas>
                     </div>
                     <div class="keyword-caption-box mt-1 shrink-0">
@@ -233,11 +233,11 @@
                 </div>
 
                 <!-- 우측: 속도/고도 및 추력/압력 그래프 -->
-                <div class="cosmic-mid-panel p-2.5 flex flex-col justify-between min-h-0 overflow-hidden">
-                    <div class="flex items-center justify-between pb-1 shrink-0">
-                        <div class="flex items-center gap-2.5">
+                <div class="chart-card-box cosmic-mid-panel p-2.5 flex flex-col justify-between min-h-[145px]">
+                    <div class="flex flex-wrap items-center justify-between gap-1 pb-1 shrink-0">
+                        <div class="flex items-center gap-2">
                             <span id="kineticsChartTitle" class="text-xs font-extrabold text-slate-100">📈 속도 · 고도 변화</span>
-                            <div id="kineticsLegendBar" class="flex items-center gap-2 text-xs font-bold">
+                            <div id="kineticsLegendBar" class="flex items-center gap-1.5 text-xs font-bold">
                                 <span class="text-rose-300">● 속력(v)</span>
                                 <span class="text-purple-300">● 고도(h)</span>
                             </div>
@@ -247,7 +247,7 @@
                             <button id="tabThrustPressure" class="tab-btn">추력·압력</button>
                         </div>
                     </div>
-                    <div class="flex-1 min-h-0 w-full">
+                    <div class="flex-1 min-h-[85px] w-full">
                         <canvas id="kineticsChart" class="w-full h-full block"></canvas>
                     </div>
                     <div id="kineticsGraphCaption" class="keyword-caption-box mt-1 shrink-0">
@@ -257,11 +257,11 @@
 
             </div>
 
-            <!-- 4. 시뮬레이션 측정 결과 & 초기값 대비 조건 비교 기록표 -->
+            <!-- 4. 시뮬레이션 측정 결과 & 초기값 대비 조건 비교 기록표 (반응형 4:8 ➔ 작은 화면 12:12 자동 전환) -->
             <div class="shrink-0 grid grid-cols-12 gap-2.5">
 
-                <!-- 좌측 4칸: 시뮬레이션 측정 결과 -->
-                <div class="col-span-4 cosmic-mid-panel p-2.5 flex flex-col justify-between">
+                <!-- 좌측: 시뮬레이션 측정 결과 -->
+                <div class="col-span-12 lg:col-span-4 cosmic-mid-panel p-2.5 flex flex-col justify-between">
                     <div class="flex items-center justify-between mb-1">
                         <span class="text-xs font-extrabold text-slate-100">🏆 측정 결과 (초기값 대비)</span>
                         <span id="resultRevealBadge" class="text-[11px] font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300">착지 시 공개</span>
@@ -285,17 +285,17 @@
                     </div>
                 </div>
 
-                <!-- 우측 8칸: 조건 변경 비교 기록표 -->
-                <div class="col-span-8 cosmic-mid-panel p-2.5 flex flex-col justify-between">
-                    <div class="flex items-center justify-between mb-1">
+                <!-- 우측: 조건 변경 비교 기록표 -->
+                <div class="col-span-12 lg:col-span-8 cosmic-mid-panel p-2.5 flex flex-col justify-between">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
                         <span class="text-xs font-extrabold text-slate-100">📋 조건 변경 비교 기록표 (초기값 대비 변화량)</span>
                         <label class="flex items-center gap-1.5 text-xs font-bold text-slate-200 cursor-pointer">
                             <input type="checkbox" id="chkOverlayHistory" checked class="rounded border-slate-500 text-sky-500">
                             궤적 모두 표시
                         </label>
                     </div>
-                    <div class="overflow-hidden rounded-lg border border-slate-600/50">
-                        <table class="w-full text-left border-collapse text-xs">
+                    <div class="overflow-x-auto rounded-lg border border-slate-600/50">
+                        <table class="w-full text-left border-collapse text-xs min-w-[460px]">
                             <thead>
                                 <tr class="bg-slate-900/90 text-slate-200 border-b border-slate-600/50 font-extrabold">
                                     <th class="py-1 px-2.5">구분</th>
@@ -315,7 +315,7 @@
 
             </div>
 
-            <!-- 5. 마지막 부분: 시뮬레이션 결론 (글자가 절대 잘리지 않게 구성, 삼각형 기호 없음) -->
+            <!-- 5. 마지막 부분: 시뮬레이션 결론 -->
             <div class="cosmic-dark-panel px-3.5 py-2 shrink-0 border border-sky-400/50 flex items-center gap-2.5">
                 <span class="text-base shrink-0">🪐</span>
                 <div class="text-xs sm:text-[13px] font-extrabold text-slate-100 leading-snug">
@@ -332,15 +332,15 @@
         </section>
     </main>
 
-    <!-- 초기 진입 팝업 모달 (삼각형 기호 제거 완료) -->
+    <!-- 초기 진입 팝업 모달 -->
     <div id="introModal" class="modal-overlay">
         <!-- Step 1: 첫 번째 팝업창 -->
         <div id="modalStep1" class="pastel-modal-content max-w-xl text-center">
-            <div class="text-6xl mb-4">🚀</div>
-            <h2 class="text-3xl font-black text-slate-900 tracking-tight mb-4">
+            <div class="text-5xl sm:text-6xl mb-4">🚀</div>
+            <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mb-4">
                 IAGTM (화성 갈끄니까)
             </h2>
-            <p class="text-base sm:text-lg text-slate-800 leading-relaxed mb-8 font-bold">
+            <p class="text-base sm:text-lg text-slate-800 leading-relaxed mb-7 font-bold">
                 수온, 물의 양, 공기 압력, 로켓 질량, 발사각을 조절하며 물로켓 발사 과정 속 물리·화학 원리와 비행 궤적을 탐구하는 시뮬레이션입니다.
             </p>
             <div class="flex justify-center">
@@ -352,49 +352,49 @@
 
         <!-- Step 2: 두 번째 팝업창 -->
         <div id="modalStep2" class="pastel-modal-content max-w-3xl hidden">
-            <div class="border-b-2 border-indigo-200 pb-3 mb-5">
-                <h2 class="text-2xl font-black text-slate-900 flex items-center gap-2">
+            <div class="border-b-2 border-indigo-200 pb-3 mb-4">
+                <h2 class="text-xl sm:text-2xl font-black text-slate-900 flex items-center gap-2">
                     <span>🔬</span> 반영된 물리 화학 핵심 개념
                 </h2>
             </div>
 
-            <div class="space-y-4">
+            <div class="space-y-3.5">
                 <!-- 물리 개념 -->
-                <div class="pastel-card-box space-y-3">
-                    <h3 class="text-xl font-black text-emerald-800 border-b border-emerald-200 pb-1.5">
+                <div class="pastel-card-box space-y-2.5">
+                    <h3 class="text-lg sm:text-xl font-black text-emerald-800 border-b border-emerald-200 pb-1">
                         ⚡ 물리 개념
                     </h3>
-                    <div class="text-base sm:text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2">
+                    <div class="text-sm sm:text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2">
                         <span class="px-2.5 py-0.5 rounded-lg bg-emerald-200 text-emerald-950 font-black">작용 · 반작용</span>
                         <span>물·공기 아래로 분출(작용) ➔ 로켓 위로 상승(반작용 추력)</span>
                     </div>
-                    <div class="text-base sm:text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2">
+                    <div class="text-sm sm:text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2">
                         <span class="px-2.5 py-0.5 rounded-lg bg-emerald-200 text-emerald-950 font-black">포물선 운동</span>
                         <span>수평 방향 등속 운동(관성) + 수직 방향 중력 작용 ➔ 포물선 궤적</span>
                     </div>
                 </div>
 
                 <!-- 화학 개념 -->
-                <div class="pastel-card-box space-y-3">
-                    <h3 class="text-xl font-black text-indigo-900 border-b border-indigo-200 pb-1.5">
+                <div class="pastel-card-box space-y-2.5">
+                    <h3 class="text-lg sm:text-xl font-black text-indigo-900 border-b border-indigo-200 pb-1">
                         🧪 화학 개념
                     </h3>
-                    <div class="text-base sm:text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2">
+                    <div class="text-sm sm:text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2">
                         <span class="px-2.5 py-0.5 rounded-lg bg-sky-200 text-sky-950 font-black">보일의 법칙</span>
                         <span>펌프 누름 ➔ 펌프 안 부피 감소 · 압력 상승 ➔ 페트병 안으로 공기 유입</span>
                     </div>
-                    <div class="text-base sm:text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2">
+                    <div class="text-sm sm:text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2">
                         <span class="px-2.5 py-0.5 rounded-lg bg-sky-200 text-sky-950 font-black">단열 팽창 (열역학 제1법칙)</span>
                         <span>열 출입 없이 급격한 팽창 ➔ 공기 내부 에너지가 물 밀어내는 에너지로 전환</span>
                     </div>
-                    <div class="text-base sm:text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2">
+                    <div class="text-sm sm:text-lg font-bold text-slate-900 flex flex-wrap items-center gap-2">
                         <span class="px-2.5 py-0.5 rounded-lg bg-sky-200 text-sky-950 font-black">물의 증기압 (포화 증기압)</span>
                         <span>수온 상승 ➔ 수증기 증발 압력 증가 ➔ 로켓을 밀어내는 총 압력 상승</span>
                     </div>
                 </div>
             </div>
 
-            <div class="mt-6 flex justify-end">
+            <div class="mt-5 flex justify-end">
                 <button id="btnModalClose" class="btn-pastel-neon">
                     닫기
                 </button>

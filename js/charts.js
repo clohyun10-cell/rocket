@@ -24,6 +24,10 @@ class PhysicsChart {
         this.initEvents();
         this.resize();
         window.addEventListener('resize', () => this.resize());
+        if (typeof ResizeObserver !== 'undefined' && this.canvas.parentElement) {
+            this.resizeObserver = new ResizeObserver(() => this.resize());
+            this.resizeObserver.observe(this.canvas.parentElement);
+        }
     }
 
     resize() {

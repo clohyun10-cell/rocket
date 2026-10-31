@@ -1,4 +1,4 @@
-/* IAGTM (화성 갈끄니까) - Refined 100vh Cosmic Space Design (No Text Clipping) */
+/* IAGTM (화성 갈끄니까) - Responsive & Fluid Cosmic Space Design */
 
 :root {
     --bg-space-deep: #050811;
@@ -18,15 +18,56 @@
 }
 
 html, body {
-    width: 100vw;
-    height: 100vh;
-    max-height: 100vh;
-    overflow: hidden;
+    width: 100%;
+    min-height: 100vh;
     background: radial-gradient(ellipse at 50% 0%, #172554 0%, #0b1326 55%, #040710 100%);
+    background-attachment: fixed;
     color: var(--unified-text-main);
     font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif;
-    line-height: 1.4;
+    line-height: 1.38;
     user-select: none;
+}
+
+/* 데스크톱/노트북 표준 화면 (가로 1150px 이상 & 세로 680px 이상): 한 화면 100vh 노스크롤 대시보드 */
+@media (min-width: 1150px) and (min-height: 680px) {
+    html, body {
+        height: 100vh;
+        max-height: 100vh;
+        overflow: hidden;
+    }
+    .dashboard-main {
+        height: calc(100vh - clamp(40px, 5.2vh, 48px));
+        overflow: hidden;
+    }
+    .left-col, .right-col {
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+}
+
+/* 작은 노트북 창, 낮은 세로 해상도, 태블릿/모바일: 자동 구성 전환 및 자연스러운 스크롤 지원 */
+@media (max-width: 1149px), (max-height: 679px) {
+    html, body {
+        height: auto;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+    .dashboard-main {
+        height: auto;
+        overflow: visible;
+        padding-bottom: 1.5rem !important;
+    }
+    .left-col, .right-col {
+        height: auto;
+        overflow: visible;
+    }
+    .canvas-viewport-box {
+        min-height: 300px !important;
+    }
+    .chart-card-box {
+        min-height: 210px !important;
+    }
 }
 
 /* 배경 천체 & 반짝이는 별빛 효과 */
@@ -86,21 +127,23 @@ html, body {
     z-index: 1;
 }
 
-/* 상단 헤더 */
+/* 상단 헤더 (화면 높이에 맞춰 유동 조절) */
 .app-header {
-    height: 44px;
+    min-height: clamp(40px, 5.2vh, 48px);
+    padding-top: 4px;
+    padding-bottom: 4px;
     background: linear-gradient(90deg, #060a15 0%, #152347 50%, #060a15 100%);
     border-bottom: 1px solid rgba(56, 189, 248, 0.32);
     position: relative;
     z-index: 20;
 }
 
-/* 발사 변수 슬라이더 컨테이너 */
+/* 발사 변수 슬라이더 컨테이너 (화면 높이에 맞춰 패딩 자동 스케일링) */
 .slider-container {
     background: rgba(15, 23, 42, 0.68);
     border: 1px solid rgba(148, 163, 184, 0.22);
     border-radius: 9px;
-    padding: 6px 11px;
+    padding: clamp(4px, 0.7vh, 8px) clamp(8px, 0.8vw, 12px);
     transition: all 0.18s ease;
 }
 
@@ -119,12 +162,12 @@ html, body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 4px;
+    gap: 6px;
+    margin-bottom: clamp(2px, 0.4vh, 5px);
 }
 
 .unified-var-title {
-    font-size: 0.82rem;
+    font-size: clamp(0.75rem, 0.82vw, 0.85rem);
     font-weight: 800;
     color: var(--unified-text-main);
     display: flex;
@@ -134,22 +177,22 @@ html, body {
 }
 
 .unified-opt-badge {
-    font-size: 0.73rem;
+    font-size: clamp(0.67rem, 0.72vw, 0.75rem);
     font-weight: 600;
     color: var(--unified-text-main);
     opacity: 0.78;
 }
 
 .num-input {
-    width: 56px;
+    width: clamp(50px, 3.8vw, 58px);
     background: rgba(9, 14, 28, 0.9);
     border: 1px solid rgba(148, 163, 184, 0.4);
     border-radius: 5px;
     color: var(--unified-text-main);
     font-weight: 800;
     font-family: monospace;
-    font-size: 0.8rem;
-    padding: 2px 5px;
+    font-size: clamp(0.74rem, 0.8vw, 0.82rem);
+    padding: 1px 4px;
     text-align: right;
 }
 
@@ -168,8 +211,8 @@ html, body {
 .range-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 15px;
-    height: 15px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     background: #e0f2fe;
     border: 2px solid #0284c7;
@@ -183,10 +226,10 @@ html, body {
     align-items: center;
     justify-content: center;
     gap: 4px;
-    padding: 5px 10px;
+    padding: clamp(4px, 0.6vh, 6px) clamp(8px, 0.7vw, 11px);
     border-radius: 7px;
     font-weight: 700;
-    font-size: 0.78rem;
+    font-size: clamp(0.72rem, 0.78vw, 0.8rem);
     cursor: pointer;
     transition: all 0.15s ease;
     border: 1px solid transparent;
@@ -196,8 +239,8 @@ html, body {
 .btn-launch {
     background: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
     color: #ffffff;
-    font-size: 0.88rem;
-    padding: 7px 12px;
+    font-size: clamp(0.8rem, 0.88vw, 0.92rem);
+    padding: clamp(5px, 0.8vh, 8px) 12px;
     border-color: rgba(125, 211, 252, 0.45);
     box-shadow: 0 0 14px rgba(56, 189, 248, 0.35);
 }
@@ -217,8 +260,8 @@ html, body {
 }
 
 .btn-speed {
-    padding: 2px 8px;
-    font-size: 0.74rem;
+    padding: 2px 7px;
+    font-size: clamp(0.68rem, 0.74vw, 0.75rem);
     font-weight: 700;
     border-radius: 5px;
     background: rgba(15, 23, 42, 0.8);
@@ -238,11 +281,11 @@ html, body {
     background: rgba(15, 23, 42, 0.82);
     border: 1px solid rgba(148, 163, 184, 0.2);
     border-radius: 8px;
-    padding: 5px 7px;
+    padding: clamp(4px, 0.6vh, 6px) 6px;
 }
 
 .hud-label {
-    font-size: 0.7rem;
+    font-size: clamp(0.65rem, 0.7vw, 0.72rem);
     font-weight: 600;
     color: var(--unified-text-main);
     opacity: 0.75;
@@ -251,7 +294,7 @@ html, body {
 
 .hud-val {
     font-family: monospace;
-    font-size: 0.9rem;
+    font-size: clamp(0.8rem, 0.9vw, 0.94rem);
     font-weight: 800;
     color: var(--unified-text-main);
 }
@@ -261,7 +304,7 @@ html, body {
     background: rgba(15, 23, 42, 0.72);
     border: 1px solid rgba(148, 163, 184, 0.22);
     border-radius: 8px;
-    padding: 5px 6px;
+    padding: clamp(4px, 0.6vh, 6px) 6px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -269,7 +312,7 @@ html, body {
 }
 
 .metric-title {
-    font-size: 0.7rem;
+    font-size: clamp(0.65rem, 0.7vw, 0.72rem);
     font-weight: 700;
     color: var(--unified-text-main);
     opacity: 0.78;
@@ -277,15 +320,15 @@ html, body {
 
 .metric-val {
     font-family: monospace;
-    font-size: 0.92rem;
+    font-size: clamp(0.82rem, 0.92vw, 0.95rem);
     font-weight: 800;
     color: var(--unified-text-main);
 }
 
 .diff-badge {
-    font-size: 0.67rem;
+    font-size: clamp(0.62rem, 0.67vw, 0.7rem);
     font-weight: 800;
-    padding: 1px 6px;
+    padding: 1px 5px;
     border-radius: 4px;
     display: inline-block;
 }
@@ -307,10 +350,10 @@ html, body {
     color: #cbd5e1;
 }
 
-/* 그래프 탭 버튼 & 글자가 절대 잘리지 않는 설명 박스 */
+/* 그래프 탭 버튼 & 글자가 절대 잘리지 않는 반응형 설명 박스 */
 .tab-btn {
-    padding: 2px 9px;
-    font-size: 0.73rem;
+    padding: 2px 8px;
+    font-size: clamp(0.68rem, 0.73vw, 0.75rem);
     font-weight: 700;
     color: #cbd5e1;
     background: rgba(15, 23, 42, 0.8);
@@ -330,15 +373,15 @@ html, body {
     border: 1px solid rgba(148, 163, 184, 0.24);
     color: var(--unified-text-main);
     border-radius: 7px;
-    padding: 5px 9px;
-    font-size: 0.74rem;
+    padding: clamp(4px, 0.55vh, 6px) 9px;
+    font-size: clamp(0.68rem, 0.74vw, 0.76rem);
     font-weight: 600;
-    line-height: 1.35;
+    line-height: 1.32;
     white-space: normal;
     overflow: visible;
 }
 
-/* 팝업 모달 */
+/* 팝업 모달 (모든 화면 크기에 대응하는 반응형 크기) */
 .modal-overlay {
     position: fixed;
     inset: 0;
@@ -363,7 +406,9 @@ html, body {
     border: 2.5px solid #38bdf8;
     border-radius: 22px;
     width: 100%;
-    padding: 2rem 2.2rem;
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: clamp(1.25rem, 2.5vh, 2rem) clamp(1.25rem, 2.5vw, 2.2rem);
     box-shadow: 0 25px 60px rgba(0, 0, 0, 0.9), 0 0 38px rgba(56, 189, 248, 0.45);
     color: #0f172a;
 }
@@ -372,15 +417,15 @@ html, body {
     background: rgba(255, 255, 255, 0.82);
     border: 2px solid rgba(99, 102, 241, 0.25);
     border-radius: 14px;
-    padding: 1.1rem 1.3rem;
+    padding: clamp(0.75rem, 1.5vh, 1.1rem) clamp(0.9rem, 1.5vw, 1.3rem);
 }
 
 .btn-pastel-neon {
     background: linear-gradient(135deg, #0ea5e9 0%, #6366f1 100%);
     color: #ffffff;
-    font-size: 1.05rem;
+    font-size: clamp(0.95rem, 1.1vw, 1.05rem);
     font-weight: 800;
-    padding: 0.7rem 2.2rem;
+    padding: clamp(0.55rem, 1.1vh, 0.7rem) clamp(1.6rem, 2.2vw, 2.2rem);
     border-radius: 12px;
     border: 1.5px solid #a5f3fc;
     box-shadow: 0 6px 20px rgba(14, 165, 233, 0.45);
