@@ -1,8 +1,7 @@
 /**
  * Interactive Real-time Canvas Chart Engine
- * 인터넷 연결 없이도 로컬에서 100% 독립 구동되는 고성능 물리 분석 차트
- * 1. 에너지 그래프: 운동에너지(Ek), 위치에너지(Ep), 역학적에너지(Em)
- * 2. 운동역학 그래프: 고도(h), 속력(v), 추력(F), 내부압력(P)
+ * - 애니메이션이 끝날 때까지 결과를 예측할 수 없도록 현재 진행 시간(currentTime)까지만 실시간 렌더링
+ * - 문자 잘림 및 중첩 완벽 방지
  */
 
 class PhysicsChart {
@@ -11,15 +10,15 @@ class PhysicsChart {
         if (!this.canvas) return;
         this.ctx = this.canvas.getContext('2d');
         this.options = Object.assign({
-            title: '',
-            xLabel: '시간 t (s)',
-            yLabel: '값',
-            datasets: [],
-            showLegend: true
+            xLabel: '시간 (s)',
+            yLabel: '',
+            datasets: []
         }, options);
 
         this.data = [];
         this.currentTime = 0;
+        this.isRevealed = false; // 착지 완료 후 전체 공개 여부
+        this.isStarted = false;  // 발사 시작 여부
         this.hoverIndex = -1;
 
         this.initEvents();
@@ -30,9 +29,11 @@ class PhysicsChart {
     resize() {
         if (!this.canvas) return;
         const rect = this.canvas.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
         const dpr = window.devicePixelRatio || 1;
         this.canvas.width = rect.width * dpr;
         this.canvas.height = rect.height * dpr;
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
         this.ctx.scale(dpr, dpr);
         this.width = rect.width;
         this.height = rect.height;
@@ -42,6 +43,7 @@ class PhysicsChart {
     initEvents() {
         if (!this.canvas) return;
         this.canvas.addEventListener('mousemove', (e) => {
+            if (!this.isStarted && !this.isRevealed) return;
             const rect = this.canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             this.handleHover(mouseX);
@@ -53,22 +55,34 @@ class PhysicsChart {
         });
     }
 
-    setData(trajectoryData) {
+    setData(trajectoryData, isStarted = false, isRevealed = false) {
         this.data = trajectoryData || [];
-        this.currentTime = 0;
+        this.isStarted = isStarted;
+        this.isRevealed = isRevealed;
         this.hoverIndex = -1;
         this.render();
     }
 
-    setCurrentTime(t) {
+    setProgress(t, isStarted = true, isRevealed = false) {
         this.currentTime = t;
+        this.isStarted = isStarted;
+        this.isRevealed = isRevealed;
         this.render();
     }
 
+    getVisibleData() {
+        if (!this.data || this.data.length === 0) return [];
+        if (this.isRevealed) return this.data;
+        if (!this.isStarted) return [];
+        return this.data.filter(pt => pt.t <= this.currentTime + 0.005);
+    }
+
     handleHover(mouseX) {
-        if (!this.data || this.data.length === 0) return;
-        const padLeft = 55;
-        const padRight = 20;
+        const visible = this.getVisibleData();
+        if (visible.length === 0) return;
+
+        const padLeft = 46;
+        const padRight = 18;
         const plotWidth = this.width - padLeft - padRight;
         if (mouseX < padLeft || mouseX > this.width - padRight) {
             this.hoverIndex = -1;
@@ -76,14 +90,13 @@ class PhysicsChart {
             return;
         }
 
-        const maxT = this.data[this.data.length - 1].t || 1;
+        const maxT = this.getDisplayMaxT(visible);
         const targetT = ((mouseX - padLeft) / plotWidth) * maxT;
 
-        // 가장 가까운 인덱스 탐색
         let closestIdx = 0;
         let minDiff = Infinity;
-        for (let i = 0; i < this.data.length; i++) {
-            const diff = Math.abs(this.data[i].t - targetT);
+        for (let i = 0; i < visible.length; i++) {
+            const diff = Math.abs(visible[i].t - targetT);
             if (diff < minDiff) {
                 minDiff = diff;
                 closestIdx = i;
@@ -91,6 +104,15 @@ class PhysicsChart {
         }
         this.hoverIndex = closestIdx;
         this.render();
+    }
+
+    getDisplayMaxT(visible) {
+        if (this.isRevealed && this.data.length > 0) {
+            return Math.max(0.5, this.data[this.data.length - 1].t);
+        }
+        // 비행 중에는 최종 비행 시간을 예측할 수 없도록 현재 진행 시간에 맞춰 동적 스케일링
+        const curr = visible.length > 0 ? visible[visible.length - 1].t : 0.5;
+        return Math.max(1.5, curr * 1.15);
     }
 
     render() {
@@ -101,44 +123,42 @@ class PhysicsChart {
 
         ctx.clearRect(0, 0, w, h);
 
-        const padLeft = 60;
-        const padRight = 25;
-        const padTop = 32;
-        const padBottom = 35;
-        const plotWidth = Math.max(10, w - padLeft - padRight);
-        const plotHeight = Math.max(10, h - padTop - padBottom);
+        const padLeft = 46;
+        const padRight = 18;
+        const padTop = 10;
+        const padBottom = 22;
+        const plotWidth = Math.max(20, w - padLeft - padRight);
+        const plotHeight = Math.max(20, h - padTop - padBottom);
 
-        // 차트 배경
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
+        // 차분한 우주 슬레이트 플롯 배경
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.72)';
         ctx.fillRect(padLeft, padTop, plotWidth, plotHeight);
 
-        // 타이틀
-        ctx.fillStyle = '#94a3b8';
-        ctx.font = '600 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText(this.options.title, padLeft, 18);
+        const visible = this.getVisibleData();
 
-        if (!this.data || this.data.length === 0) {
-            ctx.fillStyle = '#64748b';
+        if (visible.length === 0) {
+            ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(padLeft, padTop, plotWidth, plotHeight);
+
+            ctx.fillStyle = '#cbd5e1';
             ctx.textAlign = 'center';
-            ctx.font = '13px sans-serif';
-            ctx.fillText('발사 대기 중 - 발사 버튼을 누르면 그래프가 그려집니다', w / 2, h / 2);
+            ctx.font = '600 12px -apple-system, BlinkMacSystemFont, "Pretendard", sans-serif';
+            ctx.fillText('🚀 발사 시 실시간으로 그래프가 그려집니다', padLeft + plotWidth / 2, padTop + plotHeight / 2 + 4);
             return;
         }
 
-        // 축 스케일 산출
-        const maxT = Math.max(0.1, this.data[this.data.length - 1].t);
+        const maxT = this.getDisplayMaxT(visible);
         let maxY = 10;
         let minY = 0;
 
         for (const ds of this.options.datasets) {
-            for (const pt of this.data) {
+            for (const pt of visible) {
                 const val = pt[ds.key] ?? 0;
                 if (val > maxY) maxY = val;
                 if (val < minY) minY = val;
             }
         }
-        // 여유 버퍼 10%
         maxY = maxY * 1.15;
         if (minY < 0) minY = minY * 1.15;
 
@@ -153,11 +173,11 @@ class PhysicsChart {
         };
 
         // 그리드 라인 & Y축 눈금
-        const ySteps = 4;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
+        const ySteps = 3;
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.16)';
         ctx.lineWidth = 1;
-        ctx.fillStyle = '#64748b';
-        ctx.font = '10px monospace';
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '600 10px monospace';
         ctx.textAlign = 'right';
 
         for (let i = 0; i <= ySteps; i++) {
@@ -168,12 +188,14 @@ class PhysicsChart {
             ctx.lineTo(padLeft + plotWidth, y);
             ctx.stroke();
 
-            ctx.fillText(val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(val < 10 ? 1 : 0), padLeft - 6, y + 3);
+            const labelText = val >= 1000 ? (val / 1000).toFixed(1) + 'k' : val.toFixed(maxY < 15 ? 1 : 0);
+            ctx.fillText(labelText, padLeft - 6, y + 3);
         }
 
         // X축 시간 눈금
-        const xSteps = 5;
+        const xSteps = 4;
         ctx.textAlign = 'center';
+        ctx.fillStyle = '#cbd5e1';
         for (let i = 0; i <= xSteps; i++) {
             const tVal = (maxT * i) / xSteps;
             const x = padLeft + (i / xSteps) * plotWidth;
@@ -182,62 +204,41 @@ class PhysicsChart {
             ctx.lineTo(x, padTop + plotHeight + 4);
             ctx.stroke();
 
-            ctx.fillText(tVal.toFixed(1) + 's', x, padTop + plotHeight + 16);
+            ctx.fillText(tVal.toFixed(1) + 's', x, padTop + plotHeight + 15);
         }
 
-        // 축 테두리
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
+        // 플롯 테두리
+        ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+        ctx.lineWidth = 1;
         ctx.strokeRect(padLeft, padTop, plotWidth, plotHeight);
 
-        // 데이터셋 라인 그리기
+        // 데이터셋 라인 그리기 (현재 진행된 시점까지만)
         for (const ds of this.options.datasets) {
+            ctx.save();
             ctx.strokeStyle = ds.color || '#38bdf8';
-            ctx.lineWidth = ds.lineWidth || 2;
+            ctx.lineWidth = ds.lineWidth || 2.2;
+            ctx.lineJoin = 'round';
             ctx.beginPath();
 
-            for (let i = 0; i < this.data.length; i++) {
-                const pt = this.data[i];
+            for (let i = 0; i < visible.length; i++) {
+                const pt = visible[i];
                 const x = getXPixel(pt.t);
                 const y = getYPixel(pt[ds.key] ?? 0);
                 if (i === 0) ctx.moveTo(x, y);
                 else ctx.lineTo(x, y);
             }
             ctx.stroke();
-
-            // 영역 채우기 (선택 옵션)
-            if (ds.fill) {
-                ctx.save();
-                ctx.lineTo(getXPixel(this.data[this.data.length - 1].t), getYPixel(0));
-                ctx.lineTo(getXPixel(this.data[0].t), getYPixel(0));
-                ctx.closePath();
-                ctx.fillStyle = ds.fillColor || 'rgba(56, 189, 248, 0.1)';
-                ctx.fill();
-                ctx.restore();
-            }
-        }
-
-        // 현재 애니메이션 재생 시간 지시선 (붉은색/노란색 수직선)
-        if (this.currentTime >= 0 && this.currentTime <= maxT) {
-            const currX = getXPixel(this.currentTime);
-            ctx.save();
-            ctx.strokeStyle = '#f59e0b';
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([3, 3]);
-            ctx.beginPath();
-            ctx.moveTo(currX, padTop);
-            ctx.lineTo(currX, padTop + plotHeight);
-            ctx.stroke();
             ctx.restore();
         }
 
-        // 마우스 호버 표시선 및 툴팁
+        // 마우스 호버 툴팁
         const activeIdx = this.hoverIndex >= 0 ? this.hoverIndex : null;
-        if (activeIdx !== null && this.data[activeIdx]) {
-            const pt = this.data[activeIdx];
+        if (activeIdx !== null && visible[activeIdx]) {
+            const pt = visible[activeIdx];
             const hoverX = getXPixel(pt.t);
 
             ctx.save();
-            ctx.strokeStyle = '#e2e8f0';
+            ctx.strokeStyle = '#94a3b8';
             ctx.lineWidth = 1;
             ctx.setLineDash([2, 2]);
             ctx.beginPath();
@@ -246,48 +247,15 @@ class PhysicsChart {
             ctx.stroke();
             ctx.restore();
 
-            // 각 데이터셋 점 표시
             for (const ds of this.options.datasets) {
                 const hoverY = getYPixel(pt[ds.key] ?? 0);
                 ctx.fillStyle = ds.color || '#38bdf8';
                 ctx.beginPath();
                 ctx.arc(hoverX, hoverY, 4, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.strokeStyle = '#0f172a';
-                ctx.lineWidth = 1.5;
-                ctx.stroke();
             }
 
-            // 호버 툴팁 박스 렌더링
             this.drawTooltip(ctx, pt, hoverX, padTop, plotWidth, padLeft);
-        }
-
-        // 상단 범례(Legend) 렌더링
-        if (this.options.showLegend) {
-            this.drawLegend(ctx, w - padRight, 16);
-        }
-    }
-
-    drawLegend(ctx, startX, y) {
-        let curX = startX;
-        ctx.font = '500 11px sans-serif';
-        ctx.textAlign = 'right';
-
-        for (let i = this.options.datasets.length - 1; i >= 0; i--) {
-            const ds = this.options.datasets[i];
-            const text = ds.label || ds.key;
-            const textWidth = ctx.measureText(text).width;
-
-            ctx.fillStyle = '#cbd5e1';
-            ctx.fillText(text, curX, y);
-            curX -= (textWidth + 6);
-
-            // 컬러 도트
-            ctx.fillStyle = ds.color;
-            ctx.beginPath();
-            ctx.arc(curX - 4, y - 4, 4, 0, Math.PI * 2);
-            ctx.fill();
-            curX -= 18;
         }
     }
 
@@ -296,43 +264,43 @@ class PhysicsChart {
         for (const ds of this.options.datasets) {
             const val = pt[ds.key];
             const unit = ds.unit || '';
-            lines.push(`${ds.label}: ${typeof val === 'number' ? val.toFixed(1) : val} ${unit}`);
+            lines.push(`${ds.label}: ${typeof val === 'number' ? val.toFixed(1) : val}${unit}`);
         }
 
-        ctx.font = '11px monospace';
+        ctx.font = '600 10px -apple-system, BlinkMacSystemFont, monospace';
         let maxWidth = 0;
         lines.forEach(line => {
             const w = ctx.measureText(line).width;
             if (w > maxWidth) maxWidth = w;
         });
 
-        const boxWidth = maxWidth + 18;
-        const boxHeight = lines.length * 16 + 10;
+        const boxWidth = maxWidth + 16;
+        const boxHeight = lines.length * 15 + 8;
         let boxX = x + 10;
-        if (boxX + boxWidth > padLeft + plotWidth) {
+        if (boxX + boxWidth > padLeft + plotWidth - 4) {
             boxX = x - boxWidth - 10;
         }
-        let boxY = topY + 10;
+        boxX = Math.max(padLeft + 4, boxX);
+        const boxY = topY + 6;
 
         ctx.save();
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+        ctx.fillStyle = 'rgba(9, 13, 24, 0.94)';
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
         ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.roundRect ? ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 6) : ctx.rect(boxX, boxY, boxWidth, boxHeight);
+        ctx.roundRect ? ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 5) : ctx.rect(boxX, boxY, boxWidth, boxHeight);
         ctx.fill();
         ctx.stroke();
 
         ctx.textAlign = 'left';
         lines.forEach((line, idx) => {
-            ctx.fillStyle = idx === 0 ? '#38bdf8' : '#e2e8f0';
-            ctx.fillText(line, boxX + 8, boxY + 16 + idx * 16);
+            ctx.fillStyle = idx === 0 ? '#7dd3fc' : '#f8fafc';
+            ctx.fillText(line, boxX + 8, boxY + 14 + idx * 15);
         });
         ctx.restore();
     }
 }
 
-// 전역 등록
 if (typeof window !== 'undefined') {
     window.PhysicsChart = PhysicsChart;
 }

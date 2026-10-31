@@ -1,29 +1,27 @@
 /**
- * Water Rocket Main Application Logic
- * UI 바인딩, 실시간 수치 동기화, 비교 히스토리 및 민감도 분석기
+ * IAGTM (화성 갈끄니까) - Main Application Controller
+ * - 깔끔하고 눈이 편안한 100vh 노스크롤 대시보드 연동
+ * - 애니메이션 종료(착지) 전까지 결과 예측 불가 처리
+ * - 1회 변수 조정 -> 발사 및 착지 완료 -> 변수 설정값 초기값으로 자동 복귀 -> 2회 변수 조정
+ * - 착지 후 초기값, 1차, 2차 변경 전체 궤적 동시 표시 및 초기값 대비 개선/악화 키워드 분석 (삼각형 기호 제거)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. 핵심 컴포넌트 초기화
+    // 1. 렌더러 및 차트 초기화
     const renderer = new RocketRenderer('simCanvas');
-    
-    // 에너지 차트 (운동에너지, 위치에너지, 총 역학적 에너지)
+
     const energyChart = new PhysicsChart('energyChart', {
-        title: '에너지 보존 및 변화 (Kinetic & Potential Energy)',
         datasets: [
-            { key: 'Ek', label: '운동에너지 (Ek)', color: '#38bdf8', unit: 'J' },
-            { key: 'Ep', label: '위치에너지 (Ep)', color: '#4ade80', unit: 'J' },
-            { key: 'Em', label: '역학적 에너지 (Em)', color: '#f59e0b', unit: 'J', lineWidth: 1.5 }
+            { key: 'Ek', label: '운동(Ek)', color: '#38bdf8', unit: 'J', lineWidth: 2.2 },
+            { key: 'Ep', label: '위치(Ep)', color: '#34d399', unit: 'J', lineWidth: 2.2 },
+            { key: 'Em', label: '역학적(Em)', color: '#fbbf24', unit: 'J', lineWidth: 1.6 }
         ]
     });
 
-    // 운동역학 차트 (속도, 고도, 압력 등 탭 전환 가능)
-    let kineticsActiveTab = 'speed-alt';
     const kineticsChart = new PhysicsChart('kineticsChart', {
-        title: '속도 및 고도 변화 (Velocity & Altitude)',
         datasets: [
-            { key: 'v', label: '속력 (m/s)', color: '#f43f5e', unit: 'm/s' },
-            { key: 'y', label: '고도 (m)', color: '#a855f7', unit: 'm' }
+            { key: 'v', label: '속력(v)', color: '#fb7185', unit: 'm/s', lineWidth: 2.2 },
+            { key: 'y', label: '고도(h)', color: '#c084fc', unit: 'm', lineWidth: 2.2 }
         ]
     });
 
@@ -32,18 +30,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 2. DOM 요소 참조
     const elements = {
-        // 입력 슬라이더 및 입력창
         tempSlider: document.getElementById('tempSlider'),
         tempInput: document.getElementById('tempInput'),
-        tempVaporBadge: document.getElementById('tempVaporBadge'),
 
         waterSlider: document.getElementById('waterSlider'),
         waterInput: document.getElementById('waterInput'),
-        waterRatioBadge: document.getElementById('waterRatioBadge'),
 
         pressureSlider: document.getElementById('pressureSlider'),
         pressureInput: document.getElementById('pressureInput'),
-        pressurePsiBadge: document.getElementById('pressurePsiBadge'),
 
         massSlider: document.getElementById('massSlider'),
         massInput: document.getElementById('massInput'),
@@ -51,272 +45,571 @@ document.addEventListener('DOMContentLoaded', () => {
         angleSlider: document.getElementById('angleSlider'),
         angleInput: document.getElementById('angleInput'),
 
-        // 고급 옵션
-        bottleVolumeSelect: document.getElementById('bottleVolumeSelect'),
-        nozzleSelect: document.getElementById('nozzleSelect'),
-        expansionModelSelect: document.getElementById('expansionModelSelect'),
-        windInput: document.getElementById('windInput'),
+        varBoxes: {
+            waterTempC: document.getElementById('varBox_waterTempC'),
+            waterVolumeMl: document.getElementById('varBox_waterVolumeMl'),
+            airPressureBar: document.getElementById('varBox_airPressureBar'),
+            dryMassG: document.getElementById('varBox_dryMassG'),
+            launchAngleDeg: document.getElementById('varBox_launchAngleDeg')
+        },
 
-        // 액션 버튼
+        changeStepBadge: document.getElementById('changeStepBadge'),
+        changeStepGuide: document.getElementById('changeStepGuide'),
+        btnUndoCurrentVar: document.getElementById('btnUndoCurrentVar'),
+        btnResetExperiment: document.getElementById('btnResetExperiment'),
+        analysisStatusTag: document.getElementById('analysisStatusTag'),
+        twoStepAnalysisText: document.getElementById('twoStepAnalysisText'),
+
         btnLaunch: document.getElementById('btnLaunch'),
         btnPause: document.getElementById('btnPause'),
         btnReset: document.getElementById('btnReset'),
         speedButtons: document.querySelectorAll('.btn-speed'),
-        timelineSlider: document.getElementById('timelineSlider'),
 
-        // 카메라 제어 버튼
         btnCamAuto: document.getElementById('btnCamAuto'),
         btnCamFit: document.getElementById('btnCamFit'),
         btnCamReset: document.getElementById('btnCamReset'),
 
-        // 실시간 텔레메트리 HUD 요소
         hudTime: document.getElementById('hudTime'),
         hudAlt: document.getElementById('hudAlt'),
         hudDist: document.getElementById('hudDist'),
         hudVel: document.getElementById('hudVel'),
-        hudEk: document.getElementById('hudEk'),
-        hudEp: document.getElementById('hudEp'),
         hudWater: document.getElementById('hudWater'),
-        hudPressure: document.getElementById('hudPressure'),
-        hudPhase: document.getElementById('hudPhase'),
 
-        // 결과 요약 카드
+        resultRevealBadge: document.getElementById('resultRevealBadge'),
         resMaxAlt: document.getElementById('resMaxAlt'),
         resFlightDist: document.getElementById('resFlightDist'),
         resFlightTime: document.getElementById('resFlightTime'),
-        resMaxVel: document.getElementById('resMaxVel'),
-        resMaxThrust: document.getElementById('resMaxThrust'),
-        resWaterTime: document.getElementById('resWaterTime'),
-        resVaporContrib: document.getElementById('resVaporContrib'),
 
-        // 차트 탭 버튼
+        diffMaxAlt: document.getElementById('diffMaxAlt'),
+        diffFlightDist: document.getElementById('diffFlightDist'),
+        diffFlightTime: document.getElementById('diffFlightTime'),
+
         tabSpeedAlt: document.getElementById('tabSpeedAlt'),
         tabThrustPressure: document.getElementById('tabThrustPressure'),
+        kineticsChartTitle: document.getElementById('kineticsChartTitle'),
+        kineticsLegendBar: document.getElementById('kineticsLegendBar'),
+        kineticsGraphCaption: document.getElementById('kineticsGraphCaption'),
 
-        // 히스토리 & 비교
         historyTableBody: document.getElementById('historyTableBody'),
-        btnClearHistory: document.getElementById('btnClearHistory'),
         chkOverlayHistory: document.getElementById('chkOverlayHistory'),
 
-        // 민감도 분석기
-        sensitivityVarSelect: document.getElementById('sensitivityVarSelect'),
-        btnRunSensitivity: document.getElementById('btnRunSensitivity'),
-        sensitivityChartCanvas: document.getElementById('sensitivityChartCanvas'),
-        sensitivitySummary: document.getElementById('sensitivitySummary'),
-
-        // 안내 모달
-        btnOpenTheory: document.getElementById('btnOpenTheory'),
-        btnCloseTheory: document.getElementById('btnCloseTheory'),
-        theoryModal: document.getElementById('theoryModal')
+        introModal: document.getElementById('introModal'),
+        modalStep1: document.getElementById('modalStep1'),
+        modalStep2: document.getElementById('modalStep2'),
+        btnModalNext: document.getElementById('btnModalNext'),
+        btnModalClose: document.getElementById('btnModalClose')
     };
 
-    // 히스토리 색상 팔레트
-    const HISTORY_COLORS = [
-        '#38bdf8', '#f43f5e', '#a855f7', '#f59e0b', '#10b981', '#ec4899'
-    ];
-    let runHistory = [];
-    let runCounter = 1;
+    // 3. 5대 변수 메타데이터 및 초기값 정의
+    const VAR_META = {
+        waterTempC: {
+            label: '수온',
+            unit: '°C',
+            defaultVal: 25,
+            slider: elements.tempSlider,
+            input: elements.tempInput
+        },
+        waterVolumeMl: {
+            label: '물의 양',
+            unit: 'mL',
+            defaultVal: 600,
+            slider: elements.waterSlider,
+            input: elements.waterInput
+        },
+        airPressureBar: {
+            label: '공기 압력',
+            unit: 'bar',
+            defaultVal: 5.0,
+            slider: elements.pressureSlider,
+            input: elements.pressureInput
+        },
+        dryMassG: {
+            label: '로켓 질량',
+            unit: 'g',
+            defaultVal: 150,
+            slider: elements.massSlider,
+            input: elements.massInput
+        },
+        launchAngleDeg: {
+            label: '발사각',
+            unit: '°',
+            defaultVal: 45,
+            slider: elements.angleSlider,
+            input: elements.angleInput
+        }
+    };
 
-    // 3. 파라미터 읽기 함수
-    function getParamsFromUI() {
-        const bottleVolL = parseFloat(elements.bottleVolumeSelect.value) || 2.0;
+    function getDefaultRawValues() {
         return {
-            waterTempC: parseFloat(elements.tempSlider.value),
-            waterVolumeL: parseFloat(elements.waterSlider.value) / 1000, // mL -> L
-            airPressureBar: parseFloat(elements.pressureSlider.value),
-            dryMassKg: parseFloat(elements.massSlider.value) / 1000,    // g -> kg
-            launchAngleDeg: parseFloat(elements.angleSlider.value),
-            bottleVolumeL: bottleVolL,
-            nozzleDiameterM: parseFloat(elements.nozzleSelect.value),
-            isAdiabatic: elements.expansionModelSelect.value === 'adiabatic',
-            windSpeed: parseFloat(elements.windInput.value) || 0
+            waterTempC: VAR_META.waterTempC.defaultVal,
+            waterVolumeMl: VAR_META.waterVolumeMl.defaultVal,
+            airPressureBar: VAR_META.airPressureBar.defaultVal,
+            dryMassG: VAR_META.dryMassG.defaultVal,
+            launchAngleDeg: VAR_META.launchAngleDeg.defaultVal
         };
     }
 
-    // 4. 슬라이더 & 인풋 실시간 양방향 동기화 및 물리 뱃지 갱신
-    function updateDerivedBadges() {
-        const params = getParamsFromUI();
+    function getCurrentRawValues() {
+        return {
+            waterTempC: parseFloat(elements.tempSlider.value),
+            waterVolumeMl: parseFloat(elements.waterSlider.value),
+            airPressureBar: parseFloat(elements.pressureSlider.value),
+            dryMassG: parseFloat(elements.massSlider.value),
+            launchAngleDeg: parseFloat(elements.angleSlider.value)
+        };
+    }
 
-        // 수온 포화증기압 계산
-        const pVapPa = RocketPhysics.getSaturatedVaporPressure(params.waterTempC);
-        const pVapKPa = (pVapPa / 1000).toFixed(2);
-        const pVapBar = (pVapPa / 1e5).toFixed(3);
-        elements.tempVaporBadge.textContent = `포화 증기압: ${pVapKPa} kPa (${pVapBar} bar)`;
+    function applyRawValuesToSliders(raw) {
+        Object.keys(VAR_META).forEach(key => {
+            VAR_META[key].slider.value = raw[key];
+            VAR_META[key].input.value = raw[key];
+        });
+    }
 
-        // 물/공기 비율
-        const totalMl = params.bottleVolumeL * 1000;
-        const waterMl = parseFloat(elements.waterSlider.value);
-        const ratio = ((waterMl / totalMl) * 100).toFixed(0);
-        let ratioDesc = '';
-        if (ratio < 20) ratioDesc = '(공기 과다/추진제 부족)';
-        else if (ratio <= 40) ratioDesc = '(권장 최적 범위: 30~35%)';
-        else ratioDesc = '(물 과다/공기실 부족)';
-        elements.waterRatioBadge.textContent = `용량 대비 ${ratio}% ${ratioDesc}`;
+    function rawValuesToPhysicsParams(raw) {
+        return {
+            waterTempC: raw.waterTempC,
+            waterVolumeL: raw.waterVolumeMl / 1000,
+            airPressureBar: raw.airPressureBar,
+            dryMassKg: raw.dryMassG / 1000,
+            launchAngleDeg: raw.launchAngleDeg,
+            bottleVolumeL: 2.0,
+            nozzleDiameterM: 0.021,
+            isAdiabatic: true,
+            windSpeed: 0
+        };
+    }
 
-        // 압력 psi 변환
-        const psi = (params.airPressureBar * 14.5038).toFixed(1);
-        elements.pressurePsiBadge.textContent = `약 ${psi} psi (${(params.airPressureBar * 100).toFixed(0)} kPa)`;
+    const experiment = {
+        completedChanges: 0,
+        activeVarKey: null,
+        pendingLaunchRecord: null,
+        baselineSim: null,
+        baselineRevealed: false,
+        changeRecords: []
+    };
 
-        // 물 슬라이더의 최대치를 병 용량에 맞게 자동 조절
-        const maxWater = totalMl * 0.9;
-        elements.waterSlider.max = maxWater;
-        elements.waterInput.max = maxWater;
-        if (waterMl > maxWater) {
-            elements.waterSlider.value = maxWater;
-            elements.waterInput.value = maxWater;
+    // 4. 변수 잠금 및 단계 UI 업데이트
+    function updateExperimentLockUI() {
+        const count = experiment.completedChanges;
+        const activeKey = experiment.activeVarKey;
+        const isFlying = simulator.isPlaying;
+
+        elements.changeStepBadge.textContent = `${count} / 2회 변경`;
+
+        if (isFlying) {
+            elements.changeStepGuide.textContent = '🚀 비행 진행 중... (착지 후 결과 공개)';
+            elements.btnUndoCurrentVar.classList.add('hidden');
+            Object.keys(VAR_META).forEach(key => {
+                elements.varBoxes[key].classList.add('locked-var');
+                VAR_META[key].slider.disabled = true;
+                VAR_META[key].input.disabled = true;
+            });
+            return;
+        }
+
+        if (count >= 2) {
+            elements.changeStepGuide.textContent = '✅ 2회 변경 완료 · 다시 하려면 [🔄 초기화] 클릭';
+            elements.btnUndoCurrentVar.classList.add('hidden');
+            Object.keys(VAR_META).forEach(key => {
+                const box = elements.varBoxes[key];
+                box.classList.remove('active-var');
+                box.classList.add('locked-var');
+                VAR_META[key].slider.disabled = true;
+                VAR_META[key].input.disabled = true;
+            });
+            return;
+        }
+
+        const nextStepNum = count + 1;
+
+        if (!activeKey) {
+            if (count === 1) {
+                elements.changeStepGuide.textContent = '1차 완료 (초기값 복귀됨) ➔ 2차 변수 1개 조정 후 [발사하기] 클릭';
+            } else {
+                elements.changeStepGuide.textContent = '1차 변수 1개 조정 ➔ [발사하기] 클릭';
+            }
+            elements.btnUndoCurrentVar.classList.add('hidden');
+
+            Object.keys(VAR_META).forEach(key => {
+                const box = elements.varBoxes[key];
+                box.classList.remove('active-var', 'locked-var');
+                VAR_META[key].slider.disabled = false;
+                VAR_META[key].input.disabled = false;
+            });
+        } else {
+            const varLabel = VAR_META[activeKey].label;
+            elements.changeStepGuide.textContent = `[${nextStepNum}차: ${varLabel}] 선택됨 ➔ 조정 후 [발사하기] 클릭`;
+            elements.btnUndoCurrentVar.classList.remove('hidden');
+
+            Object.keys(VAR_META).forEach(key => {
+                const box = elements.varBoxes[key];
+                if (key === activeKey) {
+                    box.classList.add('active-var');
+                    box.classList.remove('locked-var');
+                    VAR_META[key].slider.disabled = false;
+                    VAR_META[key].input.disabled = false;
+                } else {
+                    box.classList.remove('active-var');
+                    box.classList.add('locked-var');
+                    VAR_META[key].slider.disabled = true;
+                    VAR_META[key].input.disabled = true;
+                }
+            });
         }
     }
 
-    function setupSync(slider, input) {
+    function onVariableManipulated(varKey) {
+        if (experiment.completedChanges >= 2 || simulator.isPlaying) return;
+
+        const currentRaw = getCurrentRawValues();
+        const defVal = VAR_META[varKey].defaultVal;
+        const currVal = currentRaw[varKey];
+
+        if (Math.abs(currVal - defVal) > 1e-4) {
+            experiment.activeVarKey = varKey;
+        } else {
+            experiment.activeVarKey = null;
+        }
+
+        updateExperimentLockUI();
+        hidePredictionBeforeLaunch();
+    }
+
+    function hidePredictionBeforeLaunch() {
+        const params = rawValuesToPhysicsParams(getCurrentRawValues());
+        simulator.loadSimulation(params, false);
+        maskResultCards('착지 시 공개');
+    }
+
+    Object.keys(VAR_META).forEach(varKey => {
+        const { slider, input, defaultVal } = VAR_META[varKey];
+
         slider.addEventListener('input', () => {
             input.value = slider.value;
-            updateDerivedBadges();
-            if (!simulator.isPlaying) {
-                previewRocket();
-            }
+            onVariableManipulated(varKey);
         });
+
         input.addEventListener('change', () => {
-            slider.value = input.value;
-            updateDerivedBadges();
-            if (!simulator.isPlaying) {
-                previewRocket();
-            }
+            let val = parseFloat(input.value);
+            const min = parseFloat(slider.min);
+            const max = parseFloat(slider.max);
+            if (isNaN(val)) val = defaultVal;
+            val = Math.max(min, Math.min(max, val));
+            input.value = val;
+            slider.value = val;
+            onVariableManipulated(varKey);
+        });
+    });
+
+    elements.btnUndoCurrentVar.addEventListener('click', () => {
+        if (!experiment.activeVarKey || simulator.isPlaying) return;
+        applyRawValuesToSliders(getDefaultRawValues());
+        experiment.activeVarKey = null;
+        updateExperimentLockUI();
+        hidePredictionBeforeLaunch();
+    });
+
+    // 5. 결과 예측 방지 마스킹 & 착지 후 초기값 대비 증감 공개 (삼각형 기호 제거)
+    function maskResultCards(statusText = '비행 중...') {
+        elements.resultRevealBadge.textContent = statusText;
+        elements.resMaxAlt.textContent = '-';
+        elements.resFlightDist.textContent = '-';
+        elements.resFlightTime.textContent = '-';
+
+        [elements.diffMaxAlt, elements.diffFlightDist, elements.diffFlightTime].forEach(b => {
+            if (!b) return;
+            b.className = 'diff-badge diff-neutral';
+            b.textContent = '대기';
         });
     }
 
-    setupSync(elements.tempSlider, elements.tempInput);
-    setupSync(elements.waterSlider, elements.waterInput);
-    setupSync(elements.pressureSlider, elements.pressureInput);
-    setupSync(elements.massSlider, elements.massInput);
-    setupSync(elements.angleSlider, elements.angleInput);
-
-    elements.bottleVolumeSelect.addEventListener('change', () => {
-        updateDerivedBadges();
-        if (!simulator.isPlaying) previewRocket();
-    });
-    elements.nozzleSelect.addEventListener('change', () => {
-        if (!simulator.isPlaying) previewRocket();
-    });
-    elements.expansionModelSelect.addEventListener('change', () => {
-        if (!simulator.isPlaying) previewRocket();
-    });
-    elements.windInput.addEventListener('input', () => {
-        if (!simulator.isPlaying) previewRocket();
-    });
-
-    // 5. 발사 전 정적 프리뷰 렌더링
-    function previewRocket() {
-        const params = getParamsFromUI();
-        const sim = simulator.loadSimulation(params);
-        updateResultsUI(sim.metrics, false);
+    function formatDiffBadge(el, diffVal, unit) {
+        if (!el) return;
+        if (Math.abs(diffVal) < 0.02) {
+            el.className = 'diff-badge diff-neutral';
+            el.textContent = `초기값 동일`;
+            return;
+        }
+        const sign = diffVal > 0 ? '+' : '';
+        const improved = diffVal > 0;
+        el.className = `diff-badge ${improved ? 'diff-up' : 'diff-down'}`;
+        el.textContent = `${sign}${diffVal.toFixed(1)}${unit} ${improved ? '개선' : '악화'}`;
     }
 
-    // 6. 결과 요약 카드 업데이트
-    function updateResultsUI(metrics, isFinished = false) {
-        if (!metrics) return;
+    function revealResultCards(metrics) {
+        if (!metrics || !experiment.baselineSim) return;
+        const base = experiment.baselineSim.metrics;
+
+        elements.resultRevealBadge.textContent = '측정 완료';
         elements.resMaxAlt.textContent = `${metrics.maxAltitude} m`;
         elements.resFlightDist.textContent = `${metrics.flightDistance} m`;
         elements.resFlightTime.textContent = `${metrics.flightTime} s`;
-        elements.resMaxVel.textContent = `${metrics.maxVelocity} m/s (${(metrics.maxVelocity * 3.6).toFixed(1)} km/h)`;
-        elements.resMaxThrust.textContent = `${metrics.maxThrust} N`;
-        elements.resWaterTime.textContent = `${metrics.waterEndTime} s`;
-        elements.resVaporContrib.textContent = `+${metrics.vaporPressureKPa} kPa`;
+
+        formatDiffBadge(elements.diffMaxAlt, metrics.maxAltitude - base.maxAltitude, 'm');
+        formatDiffBadge(elements.diffFlightDist, metrics.flightDistance - base.flightDistance, 'm');
+        formatDiffBadge(elements.diffFlightTime, metrics.flightTime - base.flightTime, 's');
     }
 
-    // 7. 실시간 프레임 콜백 (HUD 및 타임라인 동기화)
-    simulator.onUpdateCallback = (pt, currentTime, fullSim) => {
-        if (!pt) return;
-        elements.hudTime.textContent = `${currentTime.toFixed(2)}s`;
-        elements.hudAlt.textContent = `${pt.y.toFixed(1)}m`;
-        elements.hudDist.textContent = `${pt.x.toFixed(1)}m`;
-        elements.hudVel.textContent = `${pt.v.toFixed(1)}m/s (${(pt.v * 3.6).toFixed(0)}km/h)`;
-        elements.hudEk.textContent = `${pt.Ek.toFixed(0)} J`;
-        elements.hudEp.textContent = `${pt.Ep.toFixed(0)} J`;
-        elements.hudWater.textContent = `${pt.waterVolumeMl.toFixed(0)} mL`;
-        elements.hudPressure.textContent = `${pt.pressureBar.toFixed(2)} bar`;
+    // 6. 단어/키워드 위주 2회 변경 개선/악화 분석 생성 (삼각형 기호 제거)
+    function buildKeywordVerdict(rec) {
+        const base = experiment.baselineSim.metrics;
+        const dDist = rec.newMetrics.flightDistance - base.flightDistance;
+        const dAlt = rec.newMetrics.maxAltitude - base.maxAltitude;
 
-        if (elements.hudPhase) {
-            let phaseText = '대기';
-            let phaseColor = '#cbd5e1';
-            if (pt.phase === 'water') {
-                phaseText = '💧 물 분출';
-                phaseColor = '#38bdf8';
-            } else if (pt.phase === 'air') {
-                phaseText = '💨 공기 분출';
-                phaseColor = '#facc15';
-            } else if (pt.phase === 'ballistic') {
-                phaseText = '🎯 탄도 비행';
-                phaseColor = '#4ade80';
-            } else if (pt.phase === 'landed') {
-                phaseText = '🏁 착지';
-                phaseColor = '#94a3b8';
+        const signD = dDist >= 0 ? '+' : '';
+        const signA = dAlt >= 0 ? '+' : '';
+
+        let keywordCause = '';
+        if (rec.varKey === 'waterTempC') {
+            keywordCause = rec.newVal > rec.oldVal ? '증기압 증가' : '증기압 감소';
+        } else if (rec.varKey === 'airPressureBar') {
+            keywordCause = rec.newVal > rec.oldVal ? '단열팽창 추력 증가' : '추력 감소';
+        } else if (rec.varKey === 'waterVolumeMl') {
+            keywordCause = dDist >= 0 ? '적정 물 비율' : (rec.newVal > 700 ? '물 과다·공기부족' : '물 부족');
+        } else if (rec.varKey === 'dryMassG') {
+            keywordCause = rec.newVal < rec.oldVal ? '경량 가속 증가' : '과중량 가속 감소';
+        } else if (rec.varKey === 'launchAngleDeg') {
+            if (dAlt > 0 && dDist < 0) {
+                return `[${rec.step}차] ${rec.varLabel}(${rec.oldVal}➔${rec.newVal}${rec.unit}) ➔ 높이 ${signA}${dAlt.toFixed(1)}m <strong class="text-emerald-300">(개선)</strong> · 거리 ${signD}${dDist.toFixed(1)}m <strong class="text-rose-300">(악화)</strong>`;
             }
-            elements.hudPhase.textContent = phaseText;
-            elements.hudPhase.style.color = phaseColor;
+            keywordCause = dDist >= 0 ? '적정 각도' : '비최적 각도';
         }
 
-        // 타임라인 슬라이더 동기화
-        if (fullSim && fullSim.metrics.flightTime > 0) {
-            const progress = (currentTime / fullSim.metrics.flightTime) * 100;
-            elements.timelineSlider.value = progress;
+        const isImproved = dDist > 0.05 || (Math.abs(dDist) <= 0.05 && dAlt > 0.05);
+        const verdictWord = isImproved
+            ? '<strong class="text-emerald-300">개선</strong>'
+            : '<strong class="text-rose-300">악화</strong>';
+
+        return `[${rec.step}차] ${rec.varLabel}(${rec.oldVal}➔${rec.newVal}${rec.unit}) : ${keywordCause} ➔ 거리 ${signD}${dDist.toFixed(1)}m · 높이 ${signA}${dAlt.toFixed(1)}m (${verdictWord})`;
+    }
+
+    function updateAnalysisBanner() {
+        const count = experiment.changeRecords.length;
+        if (count === 0) {
+            elements.analysisStatusTag.textContent = '0 / 2회';
+            elements.twoStepAnalysisText.innerHTML =
+                '1차 변수 발사 ➔ 초기값 자동 복귀 ➔ 2차 변수 발사 완료 시 [개선 / 악화] 분석 표시';
+        } else if (count === 1) {
+            const kw1 = buildKeywordVerdict(experiment.changeRecords[0]);
+            elements.analysisStatusTag.textContent = '1 / 2회 완료';
+            elements.twoStepAnalysisText.innerHTML = `${kw1} &nbsp;│&nbsp; <span class="text-sky-300">2차 변수 조정 대기 중</span>`;
+        } else if (count >= 2) {
+            const kw1 = buildKeywordVerdict(experiment.changeRecords[0]);
+            const kw2 = buildKeywordVerdict(experiment.changeRecords[1]);
+            elements.analysisStatusTag.textContent = '2 / 2회 완료';
+            elements.twoStepAnalysisText.innerHTML = `${kw1} &nbsp;│&nbsp; ${kw2}`;
         }
-    };
+    }
 
-    // 8. 발사 완료 콜백
-    simulator.onFinishCallback = (sim) => {
-        elements.btnLaunch.disabled = false;
-        elements.btnPause.textContent = '▶ 재생';
-        updateResultsUI(sim.metrics, true);
+    // 7. 조건 변경 비교 기록표 렌더링 (삼각형 기호 제거)
+    function renderHistoryTable() {
+        if (!elements.historyTableBody || !experiment.baselineSim) return;
+        elements.historyTableBody.innerHTML = '';
 
-        // 히스토리에 자동 추가
-        addRunToHistory(sim);
-    };
+        const base = experiment.baselineSim.metrics;
+        const showBase = experiment.baselineRevealed || experiment.changeRecords.length > 0;
 
-    // 9. 발사 버튼 클릭 핸들러
-    function launch() {
-        const params = getParamsFromUI();
-        const sim = simulator.loadSimulation(params);
-        updateResultsUI(sim.metrics, false);
+        // 1) 초기값 행
+        const trBase = document.createElement('tr');
+        trBase.innerHTML = `
+            <td class="py-1.5 px-2.5 font-extrabold text-slate-300">초기값(기준)</td>
+            <td class="py-1.5 px-2.5 font-sans text-slate-300">25°C · 600mL · 5bar · 150g · 45°</td>
+            <td class="py-1.5 px-2.5 font-bold">${showBase ? base.maxAltitude + ' m' : '착지 후 공개'}</td>
+            <td class="py-1.5 px-2.5 font-bold">${showBase ? base.flightDistance + ' m' : '착지 후 공개'}</td>
+            <td class="py-1.5 px-2.5">${showBase ? base.flightTime + ' s' : '-'}</td>
+            <td class="py-1.5 px-2.5 text-center"><span class="diff-badge diff-neutral">기준</span></td>
+        `;
+        elements.historyTableBody.appendChild(trBase);
 
+        // 2) 1차, 2차 변경 행
+        for (let stepIdx = 1; stepIdx <= 2; stepIdx++) {
+            const rec = experiment.changeRecords.find(r => r.step === stepIdx);
+            const tr = document.createElement('tr');
+            const labelColor = stepIdx === 1 ? '#fbbf24' : '#f472b6';
+
+            if (!rec) {
+                tr.innerHTML = `
+                    <td class="py-1.5 px-2.5 font-extrabold" style="color:${labelColor}">${stepIdx}차 변경</td>
+                    <td class="py-1.5 px-2.5 font-sans text-slate-400">발사 착지 후 공개</td>
+                    <td class="py-1.5 px-2.5 text-slate-400">-</td>
+                    <td class="py-1.5 px-2.5 text-slate-400">-</td>
+                    <td class="py-1.5 px-2.5 text-slate-400">-</td>
+                    <td class="py-1.5 px-2.5 text-center"><span class="diff-badge diff-neutral">대기</span></td>
+                `;
+            } else {
+                const dAlt = rec.newMetrics.maxAltitude - base.maxAltitude;
+                const dDist = rec.newMetrics.flightDistance - base.flightDistance;
+                const signA = dAlt >= 0 ? '+' : '';
+                const signD = dDist >= 0 ? '+' : '';
+                const isImproved = dDist > 0.05 || (Math.abs(dDist) <= 0.05 && dAlt > 0.05);
+
+                const altBadge = Math.abs(dAlt) < 0.02 ? '0.0m' : `${signA}${dAlt.toFixed(1)}m`;
+                const distBadge = Math.abs(dDist) < 0.02 ? '0.0m' : `${signD}${dDist.toFixed(1)}m`;
+
+                tr.innerHTML = `
+                    <td class="py-1.5 px-2.5 font-extrabold" style="color:${labelColor}">${stepIdx}차 변경</td>
+                    <td class="py-1.5 px-2.5 font-sans font-bold text-slate-100">${rec.varLabel} (${rec.oldVal}➔${rec.newVal}${rec.unit})</td>
+                    <td class="py-1.5 px-2.5 font-bold">${rec.newMetrics.maxAltitude}m <span class="${dAlt >= 0 ? 'text-emerald-300' : 'text-rose-300'}">(${altBadge})</span></td>
+                    <td class="py-1.5 px-2.5 font-bold">${rec.newMetrics.flightDistance}m <span class="${dDist >= 0 ? 'text-emerald-300' : 'text-rose-300'}">(${distBadge})</span></td>
+                    <td class="py-1.5 px-2.5">${rec.newMetrics.flightTime}s</td>
+                    <td class="py-1.5 px-2.5 text-center">
+                        <span class="diff-badge ${isImproved ? 'diff-up' : 'diff-down'}">${isImproved ? '개선' : '악화'}</span>
+                    </td>
+                `;
+            }
+            elements.historyTableBody.appendChild(tr);
+        }
+    }
+
+    function syncCompletedTrajectoriesToRenderer() {
+        const list = [
+            {
+                name: '초기값(기준)',
+                color: '#94a3b8',
+                isBaseline: true,
+                sim: experiment.baselineSim
+            }
+        ];
+
+        experiment.changeRecords.forEach(rec => {
+            list.push({
+                name: `${rec.step}차(${rec.varLabel} ${rec.newVal}${rec.unit})`,
+                color: rec.step === 1 ? '#fbbf24' : '#f472b6',
+                isBaseline: false,
+                sim: rec.sim
+            });
+        });
+
+        renderer.setHistoryTrajectories(list);
+    }
+
+    // 8. 발사 및 착지 완료 이벤트 처리
+    elements.btnLaunch.addEventListener('click', () => {
+        if (simulator.isPlaying) return;
+
+        const currentRaw = getCurrentRawValues();
+        const params = rawValuesToPhysicsParams(currentRaw);
+        const sim = simulator.loadSimulation(params, false);
+
+        if (experiment.completedChanges < 2 && experiment.activeVarKey) {
+            const key = experiment.activeVarKey;
+            const oldVal = VAR_META[key].defaultVal;
+            const newVal = currentRaw[key];
+            if (Math.abs(newVal - oldVal) > 1e-4) {
+                experiment.pendingLaunchRecord = {
+                    step: experiment.completedChanges + 1,
+                    varKey: key,
+                    varLabel: VAR_META[key].label,
+                    unit: VAR_META[key].unit,
+                    oldVal,
+                    newVal,
+                    rawValues: { ...currentRaw },
+                    newMetrics: { ...sim.metrics },
+                    sim
+                };
+            } else {
+                experiment.pendingLaunchRecord = null;
+            }
+        } else {
+            experiment.pendingLaunchRecord = null;
+        }
+
+        maskResultCards('비행 측정 중...');
         renderer.camera.mode = 'auto';
         simulator.start();
-
         elements.btnPause.textContent = '⏸ 일시정지';
-        highlightButton(elements.btnLaunch);
+        updateExperimentLockUI();
+    });
+
+    simulator.onFinishCallback = (finishedSim) => {
+        elements.btnPause.textContent = '▶ 다시보기';
+        experiment.baselineRevealed = true;
+
+        if (experiment.pendingLaunchRecord) {
+            const rec = experiment.pendingLaunchRecord;
+            experiment.pendingLaunchRecord = null;
+            experiment.changeRecords.push(rec);
+            experiment.completedChanges = rec.step;
+            experiment.activeVarKey = null;
+
+            // 1회 변수 조정 및 착지 완료 시 변수 설정값을 다시 초기값으로 복귀
+            if (experiment.completedChanges === 1) {
+                applyRawValuesToSliders(getDefaultRawValues());
+            }
+        }
+
+        syncCompletedTrajectoriesToRenderer();
+        renderer.setFlightState(true, true);
+        renderer.fitAllTrajectories(finishedSim);
+        renderer.render(
+            finishedSim.trajectory[finishedSim.trajectory.length - 1],
+            finishedSim,
+            finishedSim.trajectory.length - 1
+        );
+
+        revealResultCards(finishedSim.metrics);
+        renderHistoryTable();
+        updateAnalysisBanner();
+        updateExperimentLockUI();
+    };
+
+    // 9. 실시간 비행 계기판 콜백
+    simulator.onUpdateCallback = (pt, currentTime) => {
+        if (!pt) return;
+        elements.hudTime.textContent = `${currentTime.toFixed(2)} s`;
+        elements.hudAlt.textContent = `${pt.y.toFixed(1)} m`;
+        elements.hudDist.textContent = `${pt.x.toFixed(1)} m`;
+        elements.hudVel.textContent = `${pt.v.toFixed(1)} m/s`;
+        elements.hudWater.textContent = `${pt.waterVolumeMl.toFixed(0)} mL`;
+    };
+
+    // 10. 실험 전체 초기화
+    function resetExperiment() {
+        simulator.pause();
+        const defRaw = getDefaultRawValues();
+        applyRawValuesToSliders(defRaw);
+
+        experiment.completedChanges = 0;
+        experiment.activeVarKey = null;
+        experiment.pendingLaunchRecord = null;
+        experiment.baselineRevealed = false;
+        experiment.baselineSim = RocketPhysics.simulate(rawValuesToPhysicsParams(defRaw));
+        experiment.changeRecords = [];
+
+        renderer.clearHistory();
+        syncCompletedTrajectoriesToRenderer();
+
+        hidePredictionBeforeLaunch();
+        updateExperimentLockUI();
+        updateAnalysisBanner();
+        renderHistoryTable();
     }
 
-    elements.btnLaunch.addEventListener('click', launch);
+    elements.btnResetExperiment.addEventListener('click', resetExperiment);
 
     elements.btnPause.addEventListener('click', () => {
+        if (!simulator.isStarted) return;
         simulator.togglePlay();
-        elements.btnPause.textContent = simulator.isPlaying ? '⏸ 일시정지' : '▶ 재생';
+        elements.btnPause.textContent = simulator.isPlaying ? '⏸ 일시정지' : '▶ 계속';
+        updateExperimentLockUI();
     });
 
     elements.btnReset.addEventListener('click', () => {
         simulator.reset();
-        elements.btnPause.textContent = '▶ 재생';
-        elements.timelineSlider.value = 0;
+        elements.btnPause.textContent = '⏸ 일시정지';
+        updateExperimentLockUI();
     });
 
-    // 타임라인 슬라이더 조작
-    elements.timelineSlider.addEventListener('input', (e) => {
-        if (!simulator.fullSim) return;
-        const ratio = parseFloat(e.target.value) / 100;
-        const targetT = ratio * simulator.fullSim.metrics.flightTime;
-        simulator.seekToTime(targetT);
-    });
-
-    // 배속 조절
     elements.speedButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             elements.speedButtons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            const speed = parseFloat(btn.dataset.speed);
-            simulator.setSpeed(speed);
+            simulator.setSpeed(parseFloat(btn.dataset.speed));
         });
     });
 
-    // 카메라 모드 버튼
+    // 카메라 제어
     elements.btnCamAuto.addEventListener('click', () => {
         renderer.setCameraMode('auto', simulator.fullSim?.trajectory[simulator.currentIndex]);
     });
@@ -326,360 +619,75 @@ document.addEventListener('DOMContentLoaded', () => {
     elements.btnCamReset.addEventListener('click', () => {
         renderer.camera.x = 0;
         renderer.camera.y = 0;
-        renderer.camera.scale = 12.0;
+        renderer.camera.scale = 10.5;
         renderer.camera.mode = 'auto';
     });
 
-    // 차트 탭 전환
+    // 차트 탭 전환 (삼각형 기호 제거 & 글자 잘림 방지)
     elements.tabSpeedAlt.addEventListener('click', () => {
         elements.tabSpeedAlt.classList.add('active');
         elements.tabThrustPressure.classList.remove('active');
-        kineticsChart.options.title = '속도 및 고도 변화 (Velocity & Altitude)';
+        elements.kineticsChartTitle.textContent = '📈 속도 · 고도 변화';
+        elements.kineticsLegendBar.innerHTML = `
+            <span class="text-rose-300">● 속력(v)</span>
+            <span class="text-purple-300">● 고도(h)</span>
+        `;
+        elements.kineticsGraphCaption.innerHTML = `
+            💡 발사 직후 <strong class="text-rose-300">반작용 추력으로 최고 속력 도달</strong> ➔ 비행 중 <strong class="text-slate-300">중력·공기저항 감속</strong> ➔ <strong class="text-purple-300">최고 고도 후 착지</strong>
+        `;
         kineticsChart.options.datasets = [
-            { key: 'v', label: '속력 (m/s)', color: '#f43f5e', unit: 'm/s' },
-            { key: 'y', label: '고도 (m)', color: '#a855f7', unit: 'm' }
+            { key: 'v', label: '속력(v)', color: '#fb7185', unit: 'm/s', lineWidth: 2.2 },
+            { key: 'y', label: '고도(h)', color: '#c084fc', unit: 'm', lineWidth: 2.2 }
         ];
-        kineticsChart.setData(simulator.fullSim ? simulator.fullSim.trajectory : []);
+        kineticsChart.setData(
+            simulator.fullSim ? simulator.fullSim.trajectory : [],
+            simulator.isStarted,
+            simulator.isFinished
+        );
     });
 
     elements.tabThrustPressure.addEventListener('click', () => {
         elements.tabThrustPressure.classList.add('active');
         elements.tabSpeedAlt.classList.remove('active');
-        kineticsChart.options.title = '추력 및 내부 압력 (Thrust & Pressure)';
+        elements.kineticsChartTitle.textContent = '📈 추력 · 압력 변화';
+        elements.kineticsLegendBar.innerHTML = `
+            <span class="text-sky-300">● 추력(F)</span>
+            <span class="text-amber-300">● 내부압력(P)</span>
+        `;
+        elements.kineticsGraphCaption.innerHTML = `
+            💡 발사 초기(0~0.15초) <strong class="text-sky-300">단열 팽창 분출로 최대 추력 발생</strong> ➔ 분출 완료 후 <strong class="text-amber-300">내부 압력이 대기압(1bar)으로 감소</strong>
+        `;
         kineticsChart.options.datasets = [
-            { key: 'thrust', label: '추력 (N)', color: '#38bdf8', unit: 'N' },
-            { key: 'pressureBar', label: '내부 압력 (bar)', color: '#eab308', unit: 'bar' }
+            { key: 'thrust', label: '추력(F)', color: '#38bdf8', unit: 'N', lineWidth: 2.2 },
+            { key: 'pressureBar', label: '압력(P)', color: '#fbbf24', unit: 'bar', lineWidth: 2.2 }
         ];
-        kineticsChart.setData(simulator.fullSim ? simulator.fullSim.trajectory : []);
-    });
-
-    // 10. 히스토리 기록 및 궤적 오버레이
-    function addRunToHistory(sim) {
-        const color = HISTORY_COLORS[(runCounter - 1) % HISTORY_COLORS.length];
-        const runName = `Run #${runCounter}`;
-        const item = {
-            id: runCounter++,
-            name: runName,
-            color,
-            params: { ...sim.params },
-            metrics: { ...sim.metrics },
-            sim
-        };
-        runHistory.unshift(item);
-        if (runHistory.length > 8) runHistory.pop();
-
-        // 렌더러에 히스토리 등록
-        renderer.addHistoryTrajectory(item);
-        renderHistoryTable();
-    }
-
-    function renderHistoryTable() {
-        if (!elements.historyTableBody) return;
-        elements.historyTableBody.innerHTML = '';
-
-        if (runHistory.length === 0) {
-            elements.historyTableBody.innerHTML = `
-                <tr><td colspan="8" class="text-center text-slate-400 py-3">발사 기록이 없습니다. 발사를 진행해 보세요!</td></tr>
-            `;
-            return;
-        }
-
-        runHistory.forEach(item => {
-            const tr = document.createElement('tr');
-            tr.className = 'border-b border-slate-700/50 hover:bg-slate-800/40 text-xs transition-colors';
-            tr.innerHTML = `
-                <td class="py-2 px-2 font-bold" style="color: ${item.color}">${item.name}</td>
-                <td class="py-2 px-2">${item.params.waterTempC}°C</td>
-                <td class="py-2 px-2">${(item.params.waterVolumeL * 1000).toFixed(0)}mL</td>
-                <td class="py-2 px-2">${item.params.airPressureBar}bar</td>
-                <td class="py-2 px-2">${(item.params.dryMassKg * 1000).toFixed(0)}g</td>
-                <td class="py-2 px-2">${item.params.launchAngleDeg}°</td>
-                <td class="py-2 px-2 font-semibold text-emerald-400">${item.metrics.maxAltitude}m</td>
-                <td class="py-2 px-2 font-bold text-sky-400">${item.metrics.flightDistance}m</td>
-            `;
-            // 행 클릭 시 해당 세팅 UI에 즉시 불러오기
-            tr.style.cursor = 'pointer';
-            tr.title = '클릭하면 이 실행의 조건을 다시 불러옵니다';
-            tr.addEventListener('click', () => {
-                applyParamsToUI(item.params);
-                previewRocket();
-            });
-            elements.historyTableBody.appendChild(tr);
-        });
-    }
-
-    elements.btnClearHistory.addEventListener('click', () => {
-        runHistory = [];
-        renderer.clearHistory();
-        renderHistoryTable();
-        renderer.render(simulator.fullSim?.trajectory[simulator.currentIndex], simulator.fullSim, simulator.currentIndex);
+        kineticsChart.setData(
+            simulator.fullSim ? simulator.fullSim.trajectory : [],
+            simulator.isStarted,
+            simulator.isFinished
+        );
     });
 
     elements.chkOverlayHistory.addEventListener('change', (e) => {
         renderer.showHistory = e.target.checked;
-        renderer.render(simulator.fullSim?.trajectory[simulator.currentIndex], simulator.fullSim, simulator.currentIndex);
     });
 
-    function applyParamsToUI(p) {
-        elements.tempSlider.value = p.waterTempC;
-        elements.tempInput.value = p.waterTempC;
-        elements.waterSlider.value = (p.waterVolumeL * 1000).toFixed(0);
-        elements.waterInput.value = (p.waterVolumeL * 1000).toFixed(0);
-        elements.pressureSlider.value = p.airPressureBar;
-        elements.pressureInput.value = p.airPressureBar;
-        elements.massSlider.value = (p.dryMassKg * 1000).toFixed(0);
-        elements.massInput.value = (p.dryMassKg * 1000).toFixed(0);
-        elements.angleSlider.value = p.launchAngleDeg;
-        elements.angleInput.value = p.launchAngleDeg;
-        elements.bottleVolumeSelect.value = p.bottleVolumeL;
-        elements.nozzleSelect.value = p.nozzleDiameterM;
-        elements.expansionModelSelect.value = p.isAdiabatic ? 'adiabatic' : 'isothermal';
-        updateDerivedBadges();
+    // 11. 초기 진입 2단계 팝업 모달 제어
+    if (elements.btnModalNext) {
+        elements.btnModalNext.addEventListener('click', () => {
+            elements.modalStep1.classList.add('hidden');
+            elements.modalStep2.classList.remove('hidden');
+        });
+    }
+    if (elements.btnModalClose) {
+        elements.btnModalClose.addEventListener('click', () => {
+            elements.introModal.classList.add('hidden');
+            renderer.resize();
+            energyChart.resize();
+            kineticsChart.resize();
+        });
     }
 
-    // 11. 빠른 프리셋 버튼 바인딩
-    document.querySelectorAll('[data-preset]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const preset = btn.dataset.preset;
-            if (preset === 'optimal-range') {
-                // 비행거리 극대화: 45도, 물 600mL(30%), 압력 6bar, 수온 30도
-                applyParamsToUI({
-                    waterTempC: 30,
-                    waterVolumeL: 0.6,
-                    airPressureBar: 6.0,
-                    dryMassKg: 0.15,
-                    launchAngleDeg: 45,
-                    bottleVolumeL: 2.0,
-                    nozzleDiameterM: 0.021,
-                    isAdiabatic: true
-                });
-            } else if (preset === 'max-altitude') {
-                // 수직 최고 고도: 85도, 물 550mL, 6.5bar
-                applyParamsToUI({
-                    waterTempC: 25,
-                    waterVolumeL: 0.55,
-                    airPressureBar: 6.5,
-                    dryMassKg: 0.12,
-                    launchAngleDeg: 85,
-                    bottleVolumeL: 2.0,
-                    nozzleDiameterM: 0.021,
-                    isAdiabatic: true
-                });
-            } else if (preset === 'hot-water') {
-                // 온수 증기압 효과: 수온 70도, 물 600mL, 5bar
-                applyParamsToUI({
-                    waterTempC: 70,
-                    waterVolumeL: 0.6,
-                    airPressureBar: 5.0,
-                    dryMassKg: 0.15,
-                    launchAngleDeg: 45,
-                    bottleVolumeL: 2.0,
-                    nozzleDiameterM: 0.021,
-                    isAdiabatic: true
-                });
-            } else if (preset === 'cold-water') {
-                // 냉수 비교군: 수온 5도, 물 600mL, 5bar
-                applyParamsToUI({
-                    waterTempC: 5,
-                    waterVolumeL: 0.6,
-                    airPressureBar: 5.0,
-                    dryMassKg: 0.15,
-                    launchAngleDeg: 45,
-                    bottleVolumeL: 2.0,
-                    nozzleDiameterM: 0.021,
-                    isAdiabatic: true
-                });
-            } else if (preset === 'low-water') {
-                // 물 부족 (공기만 많고 분출 질량 부족): 물 150mL
-                applyParamsToUI({
-                    waterTempC: 25,
-                    waterVolumeL: 0.15,
-                    airPressureBar: 5.0,
-                    dryMassKg: 0.15,
-                    launchAngleDeg: 45,
-                    bottleVolumeL: 2.0,
-                    nozzleDiameterM: 0.021,
-                    isAdiabatic: true
-                });
-            } else if (preset === 'high-water') {
-                // 물 과다 (너무 무거움): 물 1400mL
-                applyParamsToUI({
-                    waterTempC: 25,
-                    waterVolumeL: 1.4,
-                    airPressureBar: 5.0,
-                    dryMassKg: 0.15,
-                    launchAngleDeg: 45,
-                    bottleVolumeL: 2.0,
-                    nozzleDiameterM: 0.021,
-                    isAdiabatic: true
-                });
-            }
-            previewRocket();
-        });
-    });
-
-    // 12. 변수 민감도 분석기 (Sensitivity Explorer)
-    let sensitivityChart = null;
-    function renderSensitivityAnalysis() {
-        const varName = elements.sensitivityVarSelect.value;
-        const baseParams = getParamsFromUI();
-        const analysis = RocketPhysics.runSensitivityAnalysis(varName, baseParams, 16);
-
-        // 요약 메시지
-        let bestDist = 0;
-        let bestDistVal = 0;
-        let bestAlt = 0;
-        let bestAltVal = 0;
-
-        analysis.results.forEach(r => {
-            if (r.flightDistance > bestDist) {
-                bestDist = r.flightDistance;
-                bestDistVal = r.xValue;
-            }
-            if (r.maxAltitude > bestAlt) {
-                bestAlt = r.maxAltitude;
-                bestAltVal = r.xValue;
-            }
-        });
-
-        elements.sensitivitySummary.innerHTML = `
-            <div class="p-2 bg-slate-800/80 rounded border border-slate-700 text-xs">
-                💡 <strong>분석 결과:</strong> 비행거리 최대값은 <strong>${analysis.config.label} = ${bestDistVal}${analysis.config.unit}</strong>일 때 <span class="text-sky-400 font-bold">${bestDist.toFixed(1)}m</span>이며, 
-                최고 고도 최대값은 <strong>${bestAltVal}${analysis.config.unit}</strong>일 때 <span class="text-emerald-400 font-bold">${bestAlt.toFixed(1)}m</span>입니다.
-            </div>
-        `;
-
-        // 캔버스에 민감도 곡선 그리기
-        drawSensitivityCanvas(analysis);
-    }
-
-    function drawSensitivityCanvas(analysis) {
-        const canvas = elements.sensitivityChartCanvas;
-        if (!canvas) return;
-        const rect = canvas.getBoundingClientRect();
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-        const ctx = canvas.getContext('2d');
-        ctx.scale(dpr, dpr);
-
-        const w = rect.width;
-        const h = rect.height;
-        ctx.clearRect(0, 0, w, h);
-
-        const padLeft = 45;
-        const padRight = 45;
-        const padTop = 25;
-        const padBottom = 30;
-        const plotW = w - padLeft - padRight;
-        const plotH = h - padTop - padBottom;
-
-        // 배경
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.4)';
-        ctx.fillRect(padLeft, padTop, plotW, plotH);
-
-        const res = analysis.results;
-        if (!res || res.length === 0) return;
-
-        // 최대거리, 최대고도 스케일
-        const maxDist = Math.max(...res.map(r => r.flightDistance)) * 1.15 || 50;
-        const maxAlt = Math.max(...res.map(r => r.maxAltitude)) * 1.15 || 50;
-
-        // X축 좌표
-        const getX = (i) => padLeft + (i / (res.length - 1)) * plotW;
-        const getYDist = (val) => padTop + plotH - (val / maxDist) * plotH;
-        const getYAlt = (val) => padTop + plotH - (val / maxAlt) * plotH;
-
-        // 그리드
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-        ctx.lineWidth = 1;
-        for (let i = 0; i <= 4; i++) {
-            const y = padTop + (i / 4) * plotH;
-            ctx.beginPath();
-            ctx.moveTo(padLeft, y);
-            ctx.lineTo(padLeft + plotW, y);
-            ctx.stroke();
-        }
-
-        // 비행거리 라인 (Sky Blue)
-        ctx.strokeStyle = '#38bdf8';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        res.forEach((r, idx) => {
-            const px = getX(idx);
-            const py = getYDist(r.flightDistance);
-            if (idx === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-        });
-        ctx.stroke();
-
-        // 최고고도 라인 (Emerald Green)
-        ctx.strokeStyle = '#4ade80';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        res.forEach((r, idx) => {
-            const px = getX(idx);
-            const py = getYAlt(r.maxAltitude);
-            if (idx === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-        });
-        ctx.stroke();
-
-        // 데이터 포인트 및 X축 레이블
-        ctx.font = '10px monospace';
-        ctx.fillStyle = '#94a3b8';
-        ctx.textAlign = 'center';
-        res.forEach((r, idx) => {
-            const px = getX(idx);
-            if (idx % 2 === 0 || idx === res.length - 1) {
-                ctx.fillText(r.xValue, px, padTop + plotH + 15);
-            }
-
-            // 포인트 원
-            ctx.fillStyle = '#38bdf8';
-            ctx.beginPath();
-            ctx.arc(px, getYDist(r.flightDistance), 3, 0, Math.PI * 2);
-            ctx.fill();
-
-            ctx.fillStyle = '#4ade80';
-            ctx.beginPath();
-            ctx.arc(px, getYAlt(r.maxAltitude), 2.5, 0, Math.PI * 2);
-            ctx.fill();
-        });
-
-        // 범례
-        ctx.font = '11px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillStyle = '#38bdf8';
-        ctx.fillText('● 비행 거리 (m)', padLeft + 10, 16);
-        ctx.fillStyle = '#4ade80';
-        ctx.fillText('● 최고 고도 (m)', padLeft + 120, 16);
-    }
-
-    elements.btnRunSensitivity.addEventListener('click', renderSensitivityAnalysis);
-    elements.sensitivityVarSelect.addEventListener('change', renderSensitivityAnalysis);
-
-    // 13. 이론 안내 모달 제어
-    elements.btnOpenTheory.addEventListener('click', () => {
-        elements.theoryModal.classList.remove('hidden');
-    });
-    elements.btnCloseTheory.addEventListener('click', () => {
-        elements.theoryModal.classList.add('hidden');
-    });
-    elements.theoryModal.addEventListener('click', (e) => {
-        if (e.target === elements.theoryModal) {
-            elements.theoryModal.classList.add('hidden');
-        }
-    });
-
-    function highlightButton(btn) {
-        btn.classList.add('ring-2', 'ring-sky-400');
-        setTimeout(() => btn.classList.remove('ring-2', 'ring-sky-400'), 500);
-    }
-
-    // 초기 상태 로드
-    updateDerivedBadges();
-    previewRocket();
-    renderHistoryTable();
-    setTimeout(renderSensitivityAnalysis, 200);
+    // 12. 초기 상태 시작
+    resetExperiment();
 });
